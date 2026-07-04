@@ -1,0 +1,14 @@
+{
+  "name": "daily-digest",
+  "version": "0.1.0",
+  "description": "데일리 테크·사이언스 다이제스트 — 해외/국내 5개 소스 한국어 큐레이션 파이프라인",
+  "type": "module",
+  "private": true,
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "start": "node src/index.mjs",
+    "m0": "node src/index.mjs"
+  }
+}
