@@ -7,11 +7,16 @@
 
 ## 실행
 
-Node 22+ (외부 의존성 없음).
+Node 22+ (의존성: `rss-parser`).
 
 ```sh
-npm run m0   # = node src/index.mjs — HN 어댑터 PoC 실행
+npm install
+npm start          # 수집 → 중복제거 → 선별/재분배 파이프라인 실행
+npm test           # dedup·재분배 테스트셋 (node:test)
 ```
+
+4차 dedup(애매 구간 LLM 판정)과 M3 번역은 `ANTHROPIC_API_KEY` 환경변수가 있을 때만
+활성화된다. 없으면 애매 구간은 비중복 처리되고 번역은 원문을 유지한다(graceful fallback).
 
 ## 마일스톤 진행 상황 (기술 백서 §10)
 
@@ -19,7 +24,7 @@ npm run m0   # = node src/index.mjs — HN 어댑터 PoC 실행
 |---|---|---|
 | M0 | HN 어댑터 단독 PoC — latest+popular fetch, 공통 스키마 변환 | ✅ 완료 (2026-07-04) |
 | M1 | 5개 소스 어댑터 전체 | ✅ 완료 (2026-07-04) |
-| M2 | 중복 제거 + 재분배 | 예정 |
+| M2 | 중복 제거 + 재분배 | ✅ 완료 (2026-07-05) |
 | M3 | 번역 파이프라인 (Claude Haiku 4.5) | 예정 |
 | M4 | 스케줄링(GitHub Actions)/SQLite 저장 | 예정 |
 | M5 | 프론트엔드 최소 뷰 | 예정 |
@@ -38,8 +43,12 @@ src/
 │   ├── physorg.mjs      # 전체 + Spotlight(/rss-feed/breaking/) 피드
 │   └── techxplore.mjs   # 〃
 ├── pipeline/
-│   └── normalize.mjs    # 공통 Candidate 스키마 정의·검증
-└── index.mjs            # 실행 진입점 — 5개 소스 병렬 수집
+│   ├── normalize.mjs    # 공통 Candidate 스키마 정의·검증
+│   ├── collect.mjs      # 5개 소스 병렬 수집(allSettled)
+│   ├── dedup.mjs        # 4단계 중복 제거(url→arxiv_id→jaccard→llm)
+│   ├── select.mjs       # 선별 + 재분배(소스당 1건, 결손 보충, 상한 3)
+│   └── claude.mjs       # Claude Haiku 4.5 클라이언트(dedup 판정·번역)
+└── index.mjs            # 실행 진입점 — 수집→중복제거→선별
 ```
 
 Spotlight 피드 슬러그는 실측으로 확정: 양 사이트 모두 `/rss-feed/breaking/` ("Spotlight news only", 2026-07-04 확인).

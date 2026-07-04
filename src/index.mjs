@@ -1,62 +1,54 @@
-// M1 실행 진입점 — 5개 소스 어댑터 병렬 수집 (기술 백서 §10 로드맵)
+// 실행 진입점 — 수집 → 중복제거 → 선별/재분배 (기술 백서 §10 M0~M2)
 //
-// DoD: 소스별 latest/popular 후보 정상 수집, 스키마 확정.
-// §1: 특정 소스 어댑터가 실패해도 나머지는 계속 진행한다(Promise.allSettled).
+// M2 DoD: 4단계 dedup 통과 + 인위적 중복 테스트셋 검증(test/), 재분배 동작 확인.
+// 번역(M3)·저장(M4) 전까지는 선별 결과를 콘솔로 출력한다.
 
-import * as hackernews from './adapters/hackernews.mjs';
-import * as geeknews from './adapters/geeknews.mjs';
-import * as arxiv from './adapters/arxiv.mjs';
-import * as physorg from './adapters/physorg.mjs';
-import * as techxplore from './adapters/techxplore.mjs';
-import { assertCandidates } from './pipeline/normalize.mjs';
+import { collectAll } from './pipeline/collect.mjs';
+import { selectDaily } from './pipeline/select.mjs';
+import { makeLlmPairClassifier, hasApiKey } from './pipeline/claude.mjs';
 
-const ADAPTERS = [hackernews, geeknews, arxiv, physorg, techxplore];
 const WINDOW_HOURS = 24;
 
 const started = Date.now();
-console.log(`[M1] 5개 소스 병렬 수집 — 수집 창 ${WINDOW_HOURS}h\n`);
+console.log(`[M2] 수집 → 중복제거 → 선별/재분배 — 수집 창 ${WINDOW_HOURS}h\n`);
 
-const settled = await Promise.allSettled(
-  ADAPTERS.map(a => a.fetchCandidates({ windowHours: WINDOW_HOURS })),
-);
+const { candidatesBySource, failures } = await collectAll({ windowHours: WINDOW_HOURS });
 
-/** @type {Record<string, import('./pipeline/normalize.mjs').Candidate[]>} */
-export const candidatesBySource = {};
-let failures = 0;
-
-for (const [i, result] of settled.entries()) {
-  const source = ADAPTERS[i].SOURCE;
-  if (result.status === 'rejected') {
-    failures++;
-    candidatesBySource[source] = [];
-    console.error(`✗ ${source}: ${result.reason.message}`);
-    continue;
-  }
-  assertCandidates(result.value);
-  candidatesBySource[source] = result.value;
+console.log('소스별 후보 수:');
+for (const [source, list] of Object.entries(candidatesBySource)) {
+  console.log(`  ${source.padEnd(12)} ${String(list.length).padStart(3)}건`
+    + (list.length === 0 ? '  (재분배 대상)' : ''));
+}
+if (failures.length > 0) {
+  console.log('\n수집 실패:');
+  for (const f of failures) console.log(`  ✗ ${f}`);
 }
 
-console.log(`수집 완료 (${Date.now() - started}ms) — 실패 소스 ${failures}/5\n`);
-console.log('소스        건수  인기픽  1순위 후보');
+const classifyPair = makeLlmPairClassifier();
+console.log(`\n4차 dedup LLM 판정기: ${classifyPair ? 'ON' : 'OFF (API 키 없음 — 애매 구간 비중복 처리)'}`);
+
+const { order, deficits, unfilled, dedupLog } = await selectDaily(candidatesBySource, { classifyPair });
+
+console.log(`\n선별 완료 (${Date.now() - started}ms) — ${order.length}건 `
+  + `(결손 소스 ${deficits.length}, 미충족 슬롯 ${unfilled})`);
+if (dedupLog.length > 0) {
+  console.log(`\n중복 제거 ${dedupLog.length}건:`);
+  for (const l of dedupLog) {
+    console.log(`  [${l.method}${l.similarityScore < 1 ? ` ${l.similarityScore.toFixed(2)}` : ''}] `
+      + `"${l.droppedTitle.slice(0, 50)}" (${l.droppedSource}) ← ${l.keptSource}`);
+  }
+}
+
+console.log('\n오늘의 다이제스트:');
 console.log('─'.repeat(96));
-for (const [source, list] of Object.entries(candidatesBySource)) {
-  const popular = list.filter(c => c.isPopularPick).length;
-  const top = list[0];
-  const signal = top?.popularitySignal !== null && top?.popularitySignal !== undefined
-    ? `★${top.popularitySignal} ` : top ? '(에디터 선정) ' : '';
-  console.log(
-    `${source.padEnd(12)}${String(list.length).padStart(3)}  ${String(popular).padStart(5)}  `
-    + (top ? `${signal}${top.title.slice(0, 60)}` : '(후보 없음 — 재분배 대상)'),
-  );
+for (const [i, c] of order.entries()) {
+  const rank = String(i + 1).padStart(2, '0');
+  const badge = c.source.slice(0, 2).toUpperCase();
+  const signal = c.popularitySignal !== null ? `★${c.popularitySignal}`
+    : c.isPopularPick ? 'Spotlight' : '최신';
+  const tag = c.selectionReason === 'redistributed' ? ' [재분배]' : '';
+  console.log(`${rank} │${badge}│ ${c.title.slice(0, 62)}   ${signal}${tag}`);
+  console.log(`   ${c.url}`);
 }
 
-// 소스별 상위 3건 상세
-for (const [source, list] of Object.entries(candidatesBySource)) {
-  if (list.length === 0) continue;
-  console.log(`\n── ${source} 상위 3건 ──`);
-  for (const [i, c] of list.slice(0, 3).entries()) {
-    const signal = c.popularitySignal !== null ? `★${c.popularitySignal}` : c.isPopularPick ? 'Spotlight' : '최신';
-    console.log(`${String(i + 1).padStart(2, '0')}  [${signal}] ${c.title}`);
-    console.log(`    ${c.url}`);
-  }
-}
+export { order, candidatesBySource, dedupLog };
