@@ -18,7 +18,7 @@ npm run m0   # = node src/index.mjs — HN 어댑터 PoC 실행
 | Phase | 범위 | 상태 |
 |---|---|---|
 | M0 | HN 어댑터 단독 PoC — latest+popular fetch, 공통 스키마 변환 | ✅ 완료 (2026-07-04) |
-| M1 | 5개 소스 어댑터 전체 | 예정 |
+| M1 | 5개 소스 어댑터 전체 | ✅ 완료 (2026-07-04) |
 | M2 | 중복 제거 + 재분배 | 예정 |
 | M3 | 번역 파이프라인 (Claude Haiku 4.5) | 예정 |
 | M4 | 스케줄링(GitHub Actions)/SQLite 저장 | 예정 |
@@ -30,8 +30,16 @@ npm run m0   # = node src/index.mjs — HN 어댑터 PoC 실행
 ```
 src/
 ├── adapters/
-│   └── hackernews.mjs   # Algolia HN Search API — 24h 창 내 인기순 후보
+│   ├── http.mjs         # 공용 HTTP 헬퍼(컨텍스트 에러, 지수 백오프)
+│   ├── hackernews.mjs   # Algolia HN Search API — 24h 창 내 인기순
+│   ├── geeknews.mjs     # 홈페이지 투표 순위 + RSS 폴백 (한국어)
+│   ├── arxiv.mjs        # Atom API + HF Daily Papers 업보트 조인
+│   ├── sciencex.mjs     # Phys.org·TechXplore 공용 팩토리
+│   ├── physorg.mjs      # 전체 + Spotlight(/rss-feed/breaking/) 피드
+│   └── techxplore.mjs   # 〃
 ├── pipeline/
 │   └── normalize.mjs    # 공통 Candidate 스키마 정의·검증
-└── index.mjs            # M0 실행 진입점
+└── index.mjs            # 실행 진입점 — 5개 소스 병렬 수집
 ```
+
+Spotlight 피드 슬러그는 실측으로 확정: 양 사이트 모두 `/rss-feed/breaking/` ("Spotlight news only", 2026-07-04 확인).

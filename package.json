@@ -10,5 +10,8 @@
   "scripts": {
     "start": "node src/index.mjs",
     "m0": "node src/index.mjs"
+  },
+  "dependencies": {
+    "rss-parser": "^3.13.0"
   }
 }
