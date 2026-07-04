@@ -27,9 +27,14 @@ jobs:
       - run: npm ci
 
       # 수집 → 중복제거 → 선별/재분배 → 번역 → SQLite 적재
+      # LLM 키는 설정된 것 중 하나면 충분(§ README LLM 프로바이더 표). 선택은 LLM_PROVIDER로 고정 가능.
       - name: Run pipeline
         env:
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          XAI_API_KEY: ${{ secrets.XAI_API_KEY }}
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          LLM_PROVIDER: ${{ vars.LLM_PROVIDER }}
         run: npm start
 
       # DB → 정적 사이트(public/) 재빌드

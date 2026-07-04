@@ -4,10 +4,11 @@
 // GeekNews(§0)는 이미 한국어이므로 "번역"이 아니라 맞춤법·표기 정제만 → is_translated=0.
 // 나머지 4개 소스는 영어 원문이므로 정식 번역 → is_translated=1.
 //
-// 모델: Claude Haiku 4.5(§4.2). API 키가 없으면 원문을 그대로 두고 is_translated=0.
+// 모델: llm.mjs가 선택한 프로바이더(Anthropic/OpenAI/Grok/Gemini)의 상위-빠른 모델.
+// 어떤 프로바이더 키도 없으면 원문을 그대로 두고 is_translated=0.
 // JSON 파싱 실패 시에도 원문 폴백 — 파이프라인이 죽지 않는다(§9). 실패율은 반환값에 집계.
 
-import { askClaudeJSON, hasApiKey } from './claude.mjs';
+import { askLlmJSON, hasLlm } from './llm.mjs';
 
 // §4.2: 고유명사·전문용어 오역 방지 사전. 자주 등장하는 항목을 점진적으로 누적한다.
 const GLOSSARY = [
@@ -41,13 +42,13 @@ export async function translateItem(item, { fetchImpl = fetch, forceRefine } = {
   const refineOnly = forceRefine ?? isGeekNews;
 
   // 키가 없으면 원문 유지(§0/§4.2 fallback)
-  if (!hasApiKey()) {
+  if (!hasLlm()) {
     return { ...item, titleKo: item.title, summaryKo: item.summary, isTranslated: false };
   }
 
   const user = `제목: ${item.title}\n요약: ${item.summary ?? '(없음)'}`;
   try {
-    const out = await askClaudeJSON({
+    const out = await askLlmJSON({
       fetchImpl,
       system: refineOnly ? REFINE_SYSTEM : TRANSLATE_SYSTEM,
       user,

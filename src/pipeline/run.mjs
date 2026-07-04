@@ -6,7 +6,7 @@
 import { collectAll } from './collect.mjs';
 import { selectDaily } from './select.mjs';
 import { translateAll } from './translate.mjs';
-import { makeLlmPairClassifier } from './claude.mjs';
+import { makeLlmPairClassifier, activeProviderInfo } from './llm.mjs';
 import { openDb, savePicks, kstDateString } from '../db/index.mjs';
 
 /**
@@ -25,6 +25,9 @@ export async function runPipeline({ windowHours = 24, dbPath = 'daily-digest.db'
     log(`  ${source.padEnd(12)} ${String(list.length).padStart(3)}건`);
   }
   for (const f of failures) log(`  ✗ ${f}`);
+
+  const llm = activeProviderInfo();
+  log(`  LLM: ${llm ? `${llm.name} (${llm.model})` : 'OFF — 키 없음, 번역/4차dedup 비활성'}`);
 
   const classifyPair = makeLlmPairClassifier();
   const { order, deficits, unfilled, dedupLog } = await selectDaily(candidatesBySource, { classifyPair });

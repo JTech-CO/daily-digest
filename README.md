@@ -18,8 +18,20 @@ npm run monitor    # 엔드포인트 헬스체크 (§9 리스크 항목 실측)
 npm test           # dedup·select·번역·저장·폴백 테스트셋 (node:test, 42개)
 ```
 
-4차 dedup(애매 구간 LLM 판정)과 M3 번역은 `ANTHROPIC_API_KEY` 환경변수가 있을 때만
-활성화된다. 없으면 애매 구간은 비중복 처리되고 번역은 원문을 유지한다(graceful fallback).
+### LLM 프로바이더
+
+번역(M3)과 4차 dedup(애매 구간 LLM 판정)은 아래 중 **API 키가 설정된 프로바이더**를 자동 선택한다.
+각각의 "최상위이면서 빠른" 모델을 기본값으로 쓰며, 모델 ID는 env로 정정할 수 있다.
+
+| 프로바이더 | 키 환경변수 | 기본 모델 | 모델 override |
+|---|---|---|---|
+| Anthropic | `ANTHROPIC_API_KEY` | `claude-sonnet-5` (Opus 4.8 가능) | `ANTHROPIC_MODEL` |
+| OpenAI | `OPENAI_API_KEY` | `gpt-5.5` | `OPENAI_MODEL` |
+| Grok (xAI) | `XAI_API_KEY` / `GROK_API_KEY` | `grok-4.3` | `XAI_MODEL` |
+| Gemini | `GEMINI_API_KEY` / `GOOGLE_API_KEY` | `gemini-3.5-flash` | `GEMINI_MODEL` |
+
+키가 여럿이면 `LLM_PROVIDER`(예: `openai`)로 명시하거나, 없으면 anthropic → openai → gemini → grok
+순서로 첫 키를 쓴다. **아무 키도 없으면** 애매 구간은 비중복 처리되고 번역은 원문을 유지한다(graceful fallback).
 
 ## 마일스톤 진행 상황 (기술 백서 §10)
 
@@ -53,7 +65,7 @@ src/
 │   ├── dedup.mjs        # 4단계 중복 제거(url→arxiv_id→jaccard→llm)
 │   ├── select.mjs       # 선별 + 재분배(소스당 1건, 결손 보충, 상한 3)
 │   ├── translate.mjs    # 번역(영어 4소스)·정제(GeekNews) + 실패율 집계
-│   ├── claude.mjs       # Claude Haiku 4.5 클라이언트(dedup 판정·번역)
+│   ├── llm.mjs          # 멀티 프로바이더 클라이언트(Anthropic/OpenAI/Grok/Gemini)
 │   └── run.mjs          # 오케스트레이션(수집→…→번역→저장)
 ├── db/
 │   ├── schema.sql       # daily_picks · dedup_log (§5)

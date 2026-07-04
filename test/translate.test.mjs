@@ -4,16 +4,24 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { translateItem, translateAll } from '../src/pipeline/translate.mjs';
 
-const KEY = 'ANTHROPIC_API_KEY';
-function withKey(fn) {
+// 모든 프로바이더 키를 격리한다 — 실행 환경에 우연히 키가 있어도 결정적으로 동작
+const ALL_KEYS = ['ANTHROPIC_API_KEY', 'OPENAI_API_KEY', 'XAI_API_KEY', 'GROK_API_KEY',
+  'GEMINI_API_KEY', 'GOOGLE_API_KEY', 'LLM_PROVIDER'];
+
+function withEnv(setKeys, fn) {
   return async () => {
-    const prev = process.env[KEY];
-    process.env[KEY] = 'sk-test';
+    const saved = Object.fromEntries(ALL_KEYS.map(k => [k, process.env[k]]));
+    for (const k of ALL_KEYS) delete process.env[k];
+    Object.assign(process.env, setKeys);
     try { await fn(); } finally {
-      if (prev === undefined) delete process.env[KEY]; else process.env[KEY] = prev;
+      for (const k of ALL_KEYS) {
+        if (saved[k] === undefined) delete process.env[k]; else process.env[k] = saved[k];
+      }
     }
   };
 }
+// 기본: anthropic 키만 설정(mock이 anthropic 응답 형태를 반환하므로)
+const withKey = fn => withEnv({ ANTHROPIC_API_KEY: 'sk-test' }, fn);
 
 // Anthropic Messages API 응답을 흉내내는 mock fetch
 function mockApi(payload, { status = 200 } = {}) {
@@ -40,15 +48,12 @@ const koItem = {
   selectionReason: 'primary',
 };
 
-test('키 없음: 원문 유지, is_translated=false', async () => {
-  const prev = process.env[KEY]; delete process.env[KEY];
-  try {
-    const r = await translateItem(enItem, { fetchImpl: mockApi(asContent({ title_ko: '무시됨' })) });
-    assert.equal(r.titleKo, enItem.title);      // API를 부르지 않고 원문 유지
-    assert.equal(r.summaryKo, enItem.summary);
-    assert.equal(r.isTranslated, false);
-  } finally { if (prev !== undefined) process.env[KEY] = prev; }
-});
+test('키 없음: 원문 유지, is_translated=false', withEnv({}, async () => {
+  const r = await translateItem(enItem, { fetchImpl: mockApi(asContent({ title_ko: '무시됨' })) });
+  assert.equal(r.titleKo, enItem.title);      // API를 부르지 않고 원문 유지
+  assert.equal(r.summaryKo, enItem.summary);
+  assert.equal(r.isTranslated, false);
+}));
 
 test('영어 항목 번역: title_ko/summary_ko 반영, is_translated=true', withKey(async () => {
   const r = await translateItem(enItem, {
