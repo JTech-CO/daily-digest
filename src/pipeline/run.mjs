@@ -1,0 +1,48 @@
+// 파이프라인 오케스트레이션 (기술 백서 §1, §6)
+//
+// 수집 → 중복제거 → 선별/재분배 → 번역 → SQLite 적재.
+// index.mjs(콘솔)와 스케줄 워크플로가 공유하는 단일 진입 함수.
+
+import { collectAll } from './collect.mjs';
+import { selectDaily } from './select.mjs';
+import { translateAll } from './translate.mjs';
+import { makeLlmPairClassifier } from './claude.mjs';
+import { openDb, savePicks, kstDateString } from '../db/index.mjs';
+
+/**
+ * @param {object} [options]
+ * @param {number} [options.windowHours=24]
+ * @param {string} [options.dbPath='daily-digest.db']  null이면 저장 생략(드라이런)
+ * @param {(msg: string) => void} [options.log=console.log]
+ * @returns {Promise<{ pickDate, items, dedupLog, stats, failures, deficits, unfilled, saved }>}
+ */
+export async function runPipeline({ windowHours = 24, dbPath = 'daily-digest.db', log = console.log } = {}) {
+  const pickDate = kstDateString();
+  log(`[pipeline] ${pickDate} 시작 — 수집 창 ${windowHours}h`);
+
+  const { candidatesBySource, failures } = await collectAll({ windowHours });
+  for (const [source, list] of Object.entries(candidatesBySource)) {
+    log(`  ${source.padEnd(12)} ${String(list.length).padStart(3)}건`);
+  }
+  for (const f of failures) log(`  ✗ ${f}`);
+
+  const classifyPair = makeLlmPairClassifier();
+  const { order, deficits, unfilled, dedupLog } = await selectDaily(candidatesBySource, { classifyPair });
+  log(`  선별 ${order.length}건 (결손 ${deficits.length}, 미충족 ${unfilled}, 중복제거 ${dedupLog.length})`);
+
+  const { items, stats } = await translateAll(order);
+  log(`  번역 ${stats.translated} / 정제 ${stats.refined} / 실패 ${stats.failed} (실패율 ${(stats.failureRate * 100).toFixed(1)}%)`);
+
+  let saved = null;
+  if (dbPath) {
+    const db = openDb(dbPath);
+    try {
+      saved = savePicks(db, { pickDate, items, dedupLog });
+      log(`  저장 — 신규 ${saved.inserted} / 갱신 ${saved.updated} / dedup_log ${saved.dedupRows}`);
+    } finally {
+      db.close();
+    }
+  }
+
+  return { pickDate, items, dedupLog, stats, failures, deficits, unfilled, saved };
+}

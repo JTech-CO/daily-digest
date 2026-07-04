@@ -26,7 +26,7 @@ npm test           # dedup·재분배 테스트셋 (node:test)
 | M1 | 5개 소스 어댑터 전체 | ✅ 완료 (2026-07-04) |
 | M2 | 중복 제거 + 재분배 | ✅ 완료 (2026-07-05) |
 | M3 | 번역 파이프라인 (Claude Haiku 4.5) | ✅ 완료 (2026-07-05, 실 API는 키 필요) |
-| M4 | 스케줄링(GitHub Actions)/SQLite 저장 | 예정 |
+| M4 | 스케줄링(GitHub Actions)/SQLite 저장 | ✅ 완료 (2026-07-05) |
 | M5 | 프론트엔드 최소 뷰 | 예정 |
 | M6 | 모니터링/폴백 검증 | 예정 |
 
@@ -48,8 +48,15 @@ src/
 │   ├── dedup.mjs        # 4단계 중복 제거(url→arxiv_id→jaccard→llm)
 │   ├── select.mjs       # 선별 + 재분배(소스당 1건, 결손 보충, 상한 3)
 │   ├── translate.mjs    # 번역(영어 4소스)·정제(GeekNews) + 실패율 집계
-│   └── claude.mjs       # Claude Haiku 4.5 클라이언트(dedup 판정·번역)
-└── index.mjs            # 실행 진입점 — 수집→중복제거→선별
+│   ├── claude.mjs       # Claude Haiku 4.5 클라이언트(dedup 판정·번역)
+│   └── run.mjs          # 오케스트레이션(수집→…→번역→저장)
+├── db/
+│   ├── schema.sql       # daily_picks · dedup_log (§5)
+│   └── index.mjs        # node:sqlite 저장·조회, 멱등 재실행
+└── index.mjs            # 실행 진입점 — runPipeline 1회 실행
 ```
+
+스케줄링: `.github/workflows/daily.yml` — 매일 09:00 KST(00:00 UTC) 실행,
+`ANTHROPIC_API_KEY`는 리포지토리 Secret으로 주입, 갱신된 DB를 커밋해 누적.
 
 Spotlight 피드 슬러그는 실측으로 확정: 양 사이트 모두 `/rss-feed/breaking/` ("Spotlight news only", 2026-07-04 확인).
