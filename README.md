@@ -14,7 +14,8 @@ npm install
 npm start          # 수집 → 중복제거 → 선별/재분배 → 번역 → SQLite 적재
 npm run build      # DB → 정적 사이트(public/) 생성
 npm run serve      # public/ 로컬 미리보기 (http://localhost:4173)
-npm test           # dedup·select·번역·저장 테스트셋 (node:test)
+npm run monitor    # 엔드포인트 헬스체크 (§9 리스크 항목 실측)
+npm test           # dedup·select·번역·저장·폴백 테스트셋 (node:test, 42개)
 ```
 
 4차 dedup(애매 구간 LLM 판정)과 M3 번역은 `ANTHROPIC_API_KEY` 환경변수가 있을 때만
@@ -30,7 +31,9 @@ npm test           # dedup·select·번역·저장 테스트셋 (node:test)
 | M3 | 번역 파이프라인 (Claude Haiku 4.5) | ✅ 완료 (2026-07-05, 실 API는 키 필요) |
 | M4 | 스케줄링(GitHub Actions)/SQLite 저장 | ✅ 완료 (2026-07-05) |
 | M5 | 프론트엔드 최소 뷰 | ✅ 완료 (2026-07-05) |
-| M6 | 모니터링/폴백 검증 | 예정 |
+| M6 | 모니터링/폴백 검증 | ✅ 완료 (2026-07-05) |
+
+**로드맵 M0–M6 전체 완료.**
 
 ## 구조
 
@@ -62,10 +65,12 @@ src/
 ├── src/web/
 │   ├── build.mjs        # DB → public/(정적 자산 + data.json)
 │   └── serve.mjs        # 로컬 미리보기 서버
+├── src/monitor.mjs      # 엔드포인트·슬러그·셀렉터 헬스체크 (§9)
 └── index.mjs            # 실행 진입점 — runPipeline 1회 실행
 ```
 
-스케줄링: `.github/workflows/daily.yml` — 매일 09:00 KST(00:00 UTC) 실행,
-`ANTHROPIC_API_KEY`는 리포지토리 Secret으로 주입, DB 커밋 누적 + GitHub Pages 배포.
+스케줄링:
+- `.github/workflows/daily.yml` — 매일 09:00 KST(00:00 UTC): 파이프라인 → DB 커밋 → GitHub Pages 배포. `ANTHROPIC_API_KEY`는 리포지토리 Secret으로 주입.
+- `.github/workflows/healthcheck.yml` — 매주 월 10:00 KST: 테스트 + 엔드포인트 헬스체크로 §9 구조 변경 조기 감지.
 
 Spotlight 피드 슬러그는 실측으로 확정: 양 사이트 모두 `/rss-feed/breaking/` ("Spotlight news only", 2026-07-04 확인).

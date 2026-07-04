@@ -1,0 +1,23 @@
+name: healthcheck
+
+# §9 리스크 항목(Spotlight 슬러그·홈 파싱 셀렉터·엔드포인트) 주간 재확인.
+# 실패 시 워크플로가 붉게 표시되어 폴백에 가려진 구조 변경을 조기에 감지한다.
+on:
+  schedule:
+    - cron: '0 1 * * 1'    # 매주 월요일 10:00 KST
+  workflow_dispatch: {}
+
+jobs:
+  monitor:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - run: npm ci
+      - name: Run tests (폴백 경로 포함)
+        run: npm test
+      - name: Endpoint health check (§9)
+        run: npm run monitor

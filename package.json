@@ -11,6 +11,7 @@
     "start": "node src/index.mjs",
     "build": "node src/web/build.mjs",
     "serve": "node src/web/serve.mjs",
+    "monitor": "node src/monitor.mjs",
     "test": "node --test \"test/*.test.mjs\""
   },
   "dependencies": {
