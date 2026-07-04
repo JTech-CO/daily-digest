@@ -5,12 +5,13 @@
 
 import { collectAll } from './pipeline/collect.mjs';
 import { selectDaily } from './pipeline/select.mjs';
-import { makeLlmPairClassifier, hasApiKey } from './pipeline/claude.mjs';
+import { translateAll } from './pipeline/translate.mjs';
+import { makeLlmPairClassifier } from './pipeline/claude.mjs';
 
 const WINDOW_HOURS = 24;
 
 const started = Date.now();
-console.log(`[M2] 수집 → 중복제거 → 선별/재분배 — 수집 창 ${WINDOW_HOURS}h\n`);
+console.log(`[M3] 수집 → 중복제거 → 선별/재분배 → 번역 — 수집 창 ${WINDOW_HOURS}h\n`);
 
 const { candidatesBySource, failures } = await collectAll({ windowHours: WINDOW_HOURS });
 
@@ -39,16 +40,23 @@ if (dedupLog.length > 0) {
   }
 }
 
+// 번역/정제 (M3) — 키 없으면 원문 폴백
+const { items, stats } = await translateAll(order);
+console.log(`\n번역 완료 — 총 ${stats.total} / 번역 ${stats.translated} / 정제 ${stats.refined} / `
+  + `실패 ${stats.failed} (실패율 ${(stats.failureRate * 100).toFixed(1)}%)`);
+
+const BADGE = { hackernews: 'HN', geeknews: 'GN', arxiv: 'AX', physorg: 'PO', techxplore: 'TX' };
+
 console.log('\n오늘의 다이제스트:');
 console.log('─'.repeat(96));
-for (const [i, c] of order.entries()) {
+for (const [i, c] of items.entries()) {
   const rank = String(i + 1).padStart(2, '0');
-  const badge = c.source.slice(0, 2).toUpperCase();
   const signal = c.popularitySignal !== null ? `★${c.popularitySignal}`
     : c.isPopularPick ? 'Spotlight' : '최신';
   const tag = c.selectionReason === 'redistributed' ? ' [재분배]' : '';
-  console.log(`${rank} │${badge}│ ${c.title.slice(0, 62)}   ${signal}${tag}`);
+  console.log(`${rank} │${BADGE[c.source]}│ ${c.titleKo.slice(0, 62)}   ${signal}${tag}`);
+  if (c.summaryKo) console.log(`   ${c.summaryKo.slice(0, 90)}`);
   console.log(`   ${c.url}`);
 }
 
-export { order, candidatesBySource, dedupLog };
+export { items, order, candidatesBySource, dedupLog };

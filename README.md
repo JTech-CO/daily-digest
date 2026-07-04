@@ -25,7 +25,7 @@ npm test           # dedup·재분배 테스트셋 (node:test)
 | M0 | HN 어댑터 단독 PoC — latest+popular fetch, 공통 스키마 변환 | ✅ 완료 (2026-07-04) |
 | M1 | 5개 소스 어댑터 전체 | ✅ 완료 (2026-07-04) |
 | M2 | 중복 제거 + 재분배 | ✅ 완료 (2026-07-05) |
-| M3 | 번역 파이프라인 (Claude Haiku 4.5) | 예정 |
+| M3 | 번역 파이프라인 (Claude Haiku 4.5) | ✅ 완료 (2026-07-05, 실 API는 키 필요) |
 | M4 | 스케줄링(GitHub Actions)/SQLite 저장 | 예정 |
 | M5 | 프론트엔드 최소 뷰 | 예정 |
 | M6 | 모니터링/폴백 검증 | 예정 |
@@ -47,6 +47,7 @@ src/
 │   ├── collect.mjs      # 5개 소스 병렬 수집(allSettled)
 │   ├── dedup.mjs        # 4단계 중복 제거(url→arxiv_id→jaccard→llm)
 │   ├── select.mjs       # 선별 + 재분배(소스당 1건, 결손 보충, 상한 3)
+│   ├── translate.mjs    # 번역(영어 4소스)·정제(GeekNews) + 실패율 집계
 │   └── claude.mjs       # Claude Haiku 4.5 클라이언트(dedup 판정·번역)
 └── index.mjs            # 실행 진입점 — 수집→중복제거→선별
 ```
