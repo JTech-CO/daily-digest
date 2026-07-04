@@ -32,7 +32,16 @@ jobs:
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
         run: npm start
 
-      # DB를 리포지토리에 커밋(다음 실행이 이어서 누적) — M5에서 정적 사이트 빌드·배포 추가 예정
+      # DB → 정적 사이트(public/) 재빌드
+      - name: Build static site
+        run: npm run build
+
+      - name: Upload Pages artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: public
+
+      # DB를 리포지토리에 커밋(다음 실행이 이어서 누적)
       - name: Commit database
         run: |
           git config user.name "github-actions[bot]"
@@ -40,3 +49,16 @@ jobs:
           git add -f daily-digest.db
           git diff --staged --quiet || git commit -m "chore: update digest $(date -u +%Y-%m-%d)"
           git push
+
+  deploy:
+    needs: digest
+    runs-on: ubuntu-latest
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4

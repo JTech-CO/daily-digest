@@ -11,8 +11,10 @@ Node 22+ (의존성: `rss-parser`).
 
 ```sh
 npm install
-npm start          # 수집 → 중복제거 → 선별/재분배 파이프라인 실행
-npm test           # dedup·재분배 테스트셋 (node:test)
+npm start          # 수집 → 중복제거 → 선별/재분배 → 번역 → SQLite 적재
+npm run build      # DB → 정적 사이트(public/) 생성
+npm run serve      # public/ 로컬 미리보기 (http://localhost:4173)
+npm test           # dedup·select·번역·저장 테스트셋 (node:test)
 ```
 
 4차 dedup(애매 구간 LLM 판정)과 M3 번역은 `ANTHROPIC_API_KEY` 환경변수가 있을 때만
@@ -27,7 +29,7 @@ npm test           # dedup·재분배 테스트셋 (node:test)
 | M2 | 중복 제거 + 재분배 | ✅ 완료 (2026-07-05) |
 | M3 | 번역 파이프라인 (Claude Haiku 4.5) | ✅ 완료 (2026-07-05, 실 API는 키 필요) |
 | M4 | 스케줄링(GitHub Actions)/SQLite 저장 | ✅ 완료 (2026-07-05) |
-| M5 | 프론트엔드 최소 뷰 | 예정 |
+| M5 | 프론트엔드 최소 뷰 | ✅ 완료 (2026-07-05) |
 | M6 | 모니터링/폴백 검증 | 예정 |
 
 ## 구조
@@ -53,10 +55,17 @@ src/
 ├── db/
 │   ├── schema.sql       # daily_picks · dedup_log (§5)
 │   └── index.mjs        # node:sqlite 저장·조회, 멱등 재실행
+├── web/                 # 정적 프론트엔드 소스(디자인 백서 구현)
+│   ├── index.html       # 상태줄·피드·아카이브·테마 토글
+│   ├── styles.css       # 다크/라이트 토큰, 카드·배지·카테고리 5색
+│   └── app.js           # data.json 렌더링, 날짜 네비, 테마 전환
+├── src/web/
+│   ├── build.mjs        # DB → public/(정적 자산 + data.json)
+│   └── serve.mjs        # 로컬 미리보기 서버
 └── index.mjs            # 실행 진입점 — runPipeline 1회 실행
 ```
 
 스케줄링: `.github/workflows/daily.yml` — 매일 09:00 KST(00:00 UTC) 실행,
-`ANTHROPIC_API_KEY`는 리포지토리 Secret으로 주입, 갱신된 DB를 커밋해 누적.
+`ANTHROPIC_API_KEY`는 리포지토리 Secret으로 주입, DB 커밋 누적 + GitHub Pages 배포.
 
 Spotlight 피드 슬러그는 실측으로 확정: 양 사이트 모두 `/rss-feed/breaking/` ("Spotlight news only", 2026-07-04 확인).

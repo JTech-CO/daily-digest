@@ -9,6 +9,8 @@
   },
   "scripts": {
     "start": "node src/index.mjs",
+    "build": "node src/web/build.mjs",
+    "serve": "node src/web/serve.mjs",
     "test": "node --test \"test/*.test.mjs\""
   },
   "dependencies": {
