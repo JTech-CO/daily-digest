@@ -79,7 +79,6 @@ daily-digest/
 
 ## 5. 정보 (Info)
 
-- **License**: 개인 프로젝트(비공개). 각 기사의 저작권은 원 출처(Hacker News · GeekNews · arXiv ·
+- **License**: 개인 프로젝트. 각 기사의 저작권은 원 출처(Hacker News · GeekNews · arXiv ·
   Phys.org · TechXplore)에 있으며, 본 서비스는 **요약·번역과 원문 링크**만 제공하고 전문을 재게시하지 않습니다.
-  Phys.org·TechXplore 항목은 출처 표기를 유지합니다.
-- **Contact**: mjwbryan131@gmail.com
+  Phys.org·TechXplore 항목은 출처 표기를 유지합니다. 
