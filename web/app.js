@@ -1,8 +1,10 @@
 // daily-digest 프론트엔드 — 디자인 백서 §4, §6 구현
 // data.json(빌드 시 DB에서 생성)을 읽어 날짜별 다이제스트를 렌더링한다.
 
+// 소스 식별을 명확히 하기 위해 축약 대신 전체 명칭을 대문자로 표기
 const BADGE = {
-  hackernews: 'HN', geeknews: 'GN', arxiv: 'AX', physorg: 'PO', techxplore: 'TX',
+  hackernews: 'HACKER NEWS', geeknews: 'GEEKNEWS', arxiv: 'ARXIV',
+  physorg: 'PHYS.ORG', techxplore: 'TECHXPLORE',
 };
 
 const el = (tag, cls, text) => {
