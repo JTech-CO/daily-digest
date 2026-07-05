@@ -34,7 +34,7 @@ Hacker News · GeekNews · arXiv · Phys.org · TechXplore — 개발자·엔지
 
 1. **설치 (Install)**
    ```bash
-   git clone https://github.com/mjwbryan/daily-digest.git
+   git clone https://github.com/JTech-CO/daily-digest.git
    cd daily-digest
    npm install
    ```
