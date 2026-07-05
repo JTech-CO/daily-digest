@@ -5,7 +5,41 @@
 
 export const USER_AGENT = 'daily-digest/0.1 (personal curation; contact: mjwbryan131@gmail.com)';
 
+// 신뢰 불가 외부 응답의 본문 상한(피드·홈 HTML엔 충분). 무제한 버퍼링에 의한
+// 메모리 고갈 DoS와 파싱 폭발(ReDoS 증폭)을 막는다.
+const MAX_RESPONSE_BYTES = 8 * 1024 * 1024;
+
 const sleep = ms => new Promise(r => setTimeout(r, ms));
+
+/** 응답 본문을 상한(MAX_RESPONSE_BYTES)까지만 스트리밍으로 읽는다. 초과 시 중단·throw. */
+async function readCapped(res, source, url) {
+  // Content-Length가 이미 상한을 넘으면 즉시 거절(스트림을 열지 않음)
+  const declared = Number(res.headers?.get?.('content-length'));
+  if (Number.isFinite(declared) && declared > MAX_RESPONSE_BYTES) {
+    throw new Error(`[${source}] 응답이 상한(${MAX_RESPONSE_BYTES}B)을 초과(Content-Length ${declared}): ${url}`);
+  }
+  const reader = res.body?.getReader?.();
+  if (!reader) return res.text(); // 스트림 미지원 환경(테스트 mock 등) 폴백
+
+  const decoder = new TextDecoder('utf-8');
+  let text = '';
+  let total = 0;
+  try {
+    for (;;) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      total += value.byteLength;
+      if (total > MAX_RESPONSE_BYTES) {
+        await reader.cancel();
+        throw new Error(`[${source}] 응답이 상한(${MAX_RESPONSE_BYTES}B)을 초과: ${url}`);
+      }
+      text += decoder.decode(value, { stream: true });
+    }
+  } finally {
+    try { reader.releaseLock(); } catch {}
+  }
+  return text + decoder.decode();
+}
 
 /**
  * 텍스트 응답을 가져온다. 실패 시 [source] 컨텍스트를 포함해 throw.
@@ -34,7 +68,7 @@ export async function fetchText(source, url, { fetchImpl = fetch, retries = 0, r
       if (res.status === 429 || res.status >= 500) continue; // 재시도 대상
       throw lastError;                                       // 4xx는 재시도 무의미
     }
-    return res.text();
+    return readCapped(res, source, url);
   }
   throw lastError;
 }

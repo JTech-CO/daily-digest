@@ -5,19 +5,17 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>daily-digest</title>
   <meta name="description" content="Hacker News · GeekNews · arXiv · Phys.org · TechXplore 5개 소스 한국어 큐레이션">
+  <!-- 방어 계층(BYOK 사이트). 스크립트는 자기 출처만, 연결은 data.json과 4개 LLM 프로바이더로 제한.
+       GitHub Pages는 응답 헤더를 못 붙이므로 meta로 선언한다. -->
+  <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self'; style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://fonts.googleapis.com; font-src 'self' https://cdn.jsdelivr.net https://fonts.gstatic.com; img-src 'self' data:; connect-src 'self' https://api.anthropic.com https://api.openai.com https://api.x.ai https://generativelanguage.googleapis.com; base-uri 'none'; form-action 'none'">
   <link rel="preconnect" href="https://cdn.jsdelivr.net">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css">
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&display=swap">
   <link rel="stylesheet" href="styles.css">
-  <!-- FOUC 방지: 저장된 테마를 파싱 전에 적용 -->
-  <script>
-    (function () {
-      var saved = localStorage.getItem('theme');
-      document.documentElement.dataset.theme = saved || 'dark';
-    })();
-  </script>
+  <!-- FOUC 방지: 저장된 테마를 렌더 전에 적용(외부 파일 — CSP script-src 'self') -->
+  <script src="theme-init.js"></script>
 </head>
 <body>
   <header class="statusline">

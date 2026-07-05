@@ -52,10 +52,15 @@ export async function fetchCandidates({ windowHours = 24, limit = 20, fetchImpl 
 }
 
 /** 홈페이지 HTML에서 topic_row 블록들을 순위 순서대로 파싱한다. 실패 항목은 건너뜀. */
+// 실제 topic_row 블록은 ~2KB 남짓이다. 신뢰 불가 HTML에서 비정상적으로 큰 블록이
+// 초선형 정규식 백트래킹(ReDoS)을 유발하지 못하도록 블록 입력을 상한으로 자른다.
+const MAX_BLOCK_CHARS = 32 * 1024;
+
 export function parseHomepage(html) {
   const out = [];
   const blocks = html.split("<div class='topic_row'").slice(1);
-  for (const block of blocks) {
+  for (const rawBlock of blocks) {
+    const block = rawBlock.length > MAX_BLOCK_CHARS ? rawBlock.slice(0, MAX_BLOCK_CHARS) : rawBlock;
     const id = block.match(/data-topic-state-id='(\d+)'/)?.[1];
     const titleM = block.match(/<div class=topictitle>.*?<a href='([^']*)'[^>]*>.*?<h2 class='topic-title-heading'>([\s\S]*?)<\/h2>/s);
     if (!id || !titleM) continue;

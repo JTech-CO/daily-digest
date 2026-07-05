@@ -19,6 +19,17 @@ const el = (tag, cls, text) => {
   return n;
 };
 
+// 렌더 시점 심층방어: 신뢰 불가 URL은 http(s)만 허용(javascript:/data: 스킴 차단).
+// 파이프라인이 이미 스킴을 강제하지만, data.json이 파이프라인 밖에서 오염돼도 안전하도록.
+function safeHttpUrl(url) {
+  try {
+    const proto = new URL(url, location.href).protocol;
+    return (proto === 'http:' || proto === 'https:') ? url : null;
+  } catch {
+    return null;
+  }
+}
+
 // ── 상대 시간 (§4.1 "3시간 전") ────────────────────────────────
 function relativeTime(iso) {
   if (!iso) return '';
@@ -73,11 +84,16 @@ function renderPick(pick, index) {
   const meta = el('div', 'pick__meta');
   meta.append(el('time', 'pick__time', relativeTime(pick.published_at)));
   meta.append(el('span', 'pick__sep', '·'));
-  const link = el('a', 'pick__link', '원문 보기 ↗');
-  link.href = pick.url;
-  link.target = '_blank';
-  link.rel = 'noopener noreferrer';
-  meta.append(link);
+  const href = safeHttpUrl(pick.url);
+  if (href) {
+    const link = el('a', 'pick__link', '원문 보기 ↗');
+    link.href = href;
+    link.target = '_blank';
+    link.rel = 'noopener noreferrer';
+    meta.append(link);
+  } else {
+    meta.append(el('span', 'pick__link', '원문 링크 없음'));
+  }
   if (pick.selection_reason === 'redistributed') {
     meta.append(el('span', 'pick__redist', '재분배'));
   }
@@ -258,7 +274,10 @@ function openDetail(pick) {
   // 번역된 항목만 원제 병기(GeekNews 등 원문=한국어면 생략)
   orig.textContent = pick.is_translated && pick.title_original ? pick.title_original : '';
   orig.hidden = !orig.textContent;
-  document.getElementById('detailSource').href = pick.url;
+  const srcLink = document.getElementById('detailSource');
+  const srcHref = safeHttpUrl(pick.url);
+  srcLink.href = srcHref || '#';
+  srcLink.hidden = !srcHref;
 
   renderDetailBody(pick);
 

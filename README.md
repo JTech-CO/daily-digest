@@ -71,6 +71,18 @@ npm test           # dedup·select·번역·저장·폴백 테스트셋 (node:te
 
 키를 브라우저에 노출하는 BYOK 패턴이므로 공용 PC에서는 사용 후 **지우기** 권장.
 
+## 보안
+
+코드베이스 전체 보안 감사(위협 차원별 병렬 + 익스플로잇 적대적 검증)를 수행했다. critical/high 확정 0건이며
+(모든 DOM 렌더는 `textContent`, URL은 파이프라인에서 http(s) 강제, SQL은 파라미터 바인딩, 시크릿 유출·프로토타입 오염·SSRF 없음),
+발견된 항목은 모두 방어 계층으로 반영했다:
+
+- **응답 크기 상한**(`http.mjs`) — 신뢰 불가 외부 응답을 8MB로 캡(메모리 고갈 DoS·ReDoS 증폭 차단).
+- **경로 탐색 차단**(`serve.mjs`) — `%2f` 인코딩 우회(`..` 세그먼트) 거절 + 경계 구분자 검사.
+- **클라이언트 URL 스킴 검증**(`app.js`) — `pick.url`을 http(s)만 허용(`javascript:` 스킴 심층방어).
+- **파싱 정규식 하드닝**(`geeknews.mjs`) — 블록 입력 상한으로 초선형 백트래킹 방지.
+- **CSP**(`index.html`) — `script-src 'self'`, `connect-src`를 data.json + 4개 LLM 프로바이더로 제한.
+
 ## 구조
 
 ```
