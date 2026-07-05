@@ -112,8 +112,8 @@ export function hasConfig() {
   return getConfig() !== null;
 }
 
-/** 설정된 프로바이더로 JSON 응답을 요청한다. 코드펜스 감싸기까지 파싱. */
-export async function askLlmJSON({ system, user, maxTokens = 2000 }) {
+/** 설정된 프로바이더로 JSON 응답을 요청한다. 타임아웃·코드펜스 파싱 포함. */
+export async function askLlmJSON({ system, user, maxTokens = 2000, timeoutMs = 60000 }) {
   const cfg = getConfig();
   if (!cfg) throw new Error('API 키가 설정되지 않았습니다. 우측 상단 ⚙ 설정에서 입력하세요.');
   const provider = PROVIDERS[cfg.provider];
@@ -121,30 +121,47 @@ export async function askLlmJSON({ system, user, maxTokens = 2000 }) {
 
   const model = cfg.model || provider.defaultModel;
   const { url, headers, body } = provider.build(cfg.apiKey, model, system, user, maxTokens);
+  const timeoutMsg = `요청 시간 초과(${Math.round(timeoutMs / 1000)}초). 다시 시도하세요.`;
 
-  let res;
+  // 멈춘 요청이 버튼을 영구 잠그지 않도록 타임아웃으로 중단한다.
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
   try {
-    res = await fetch(url, { method: 'POST', headers, body: JSON.stringify(body) });
-  } catch (err) {
-    // CORS/네트워크 실패는 여기로 온다(TypeError: Failed to fetch)
-    const hint = provider.corsRisk
-      ? ` (${provider.label}는 브라우저 직접 호출이 CORS로 차단될 수 있습니다. 다른 프로바이더를 사용해 보세요.)`
-      : ' (네트워크 또는 CORS 오류)';
-    throw new Error(`요청 실패${hint}`);
-  }
-  if (!res.ok) {
-    let detail = '';
-    try { detail = (await res.text()).slice(0, 200); } catch {}
-    throw new Error(`API 오류 ${res.status}: ${detail}`);
-  }
+    let res;
+    try {
+      res = await fetch(url, { method: 'POST', headers, body: JSON.stringify(body), signal: controller.signal });
+    } catch (err) {
+      if (err?.name === 'AbortError') throw new Error(timeoutMsg);
+      // CORS/네트워크 실패는 여기로 온다(TypeError: Failed to fetch)
+      const hint = provider.corsRisk
+        ? ` (${provider.label}는 브라우저 직접 호출이 CORS로 차단될 수 있습니다. 다른 프로바이더를 사용해 보세요.)`
+        : ' (네트워크 또는 CORS 오류)';
+      throw new Error(`요청 실패${hint}`);
+    }
+    if (!res.ok) {
+      let detail = '';
+      try { detail = (await res.text()).slice(0, 200); } catch {}
+      throw new Error(`API 오류 ${res.status}: ${detail}`);
+    }
 
-  const data = await res.json();
-  const text = provider.extract(data);
-  const jsonText = text.match(/```(?:json)?\s*([\s\S]*?)```/)?.[1] ?? text;
-  try {
-    return JSON.parse(jsonText.trim());
-  } catch {
-    throw new Error(`응답 JSON 파싱 실패: ${text.slice(0, 120)}`);
+    // 200이어도 프록시/게이트웨이가 HTML 등 비-JSON을 줄 수 있다 — 원시 예외 대신 안내.
+    let data;
+    try {
+      data = await res.json();
+    } catch (err) {
+      if (err?.name === 'AbortError') throw new Error(timeoutMsg);
+      throw new Error('응답 형식 오류(JSON이 아닌 응답). 프록시/게이트웨이가 개입했을 수 있습니다.');
+    }
+
+    const text = provider.extract(data);
+    const jsonText = text.match(/```(?:json)?\s*([\s\S]*?)```/)?.[1] ?? text;
+    try {
+      return JSON.parse(jsonText.trim());
+    } catch {
+      throw new Error(`응답 JSON 파싱 실패: ${text.slice(0, 120)}`);
+    }
+  } finally {
+    clearTimeout(timer);
   }
 }
 

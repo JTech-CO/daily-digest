@@ -186,13 +186,13 @@ function section(label, text, { markdown = false, copyable = false, fallback = n
   return sec;
 }
 
-// pick의 유효 상세 = 사전 생성(파이프라인) → 브라우저 캐시 순
+// pick의 유효 상세 = 브라우저 생성 캐시(사용자의 명시적 생성이 우선) → 파이프라인 사전 생성
 function effectiveDetail(pick) {
   const cached = cachedDetail(pick);
   return {
-    translation: pick.detail_translation || cached?.translation || null,
-    summary: pick.detail_summary || cached?.summary || null,
-    blog: pick.detail_blog || cached?.blog || null,
+    translation: cached?.translation || pick.detail_translation || null,
+    summary: cached?.summary || pick.detail_summary || null,
+    blog: cached?.blog || pick.detail_blog || null,
   };
 }
 
@@ -207,26 +207,29 @@ function renderDetailBody(pick) {
     section('블로그 글 작성용 초안', d.blog, { markdown: true, copyable: true }),
   );
 
-  // 3구성 중 하나라도 비었으면 브라우저 직접 생성 안내/버튼을 상단에 추가
   const incomplete = !d.translation || !d.summary || !d.blog;
-  if (incomplete) body.prepend(generateControl(pick));
+  // 키가 있으면 항상 (재)생성 버튼을 둔다 — 모델/프로바이더를 바꾼 뒤 다시 생성 가능해야 함.
+  // 키가 없고 비어 있으면 설정 유도 버튼을 둔다.
+  if (hasConfig() || incomplete) body.prepend(generateControl(pick, incomplete));
 }
 
-function generateControl(pick) {
+function generateControl(pick, incomplete) {
   const wrap = el('div', 'detail__gen');
   if (hasConfig()) {
-    const btn = el('button', 'detail__generate', 'AI로 상세 생성');
     const cfg = getConfig();
+    const label = incomplete ? 'AI로 상세 생성' : '다시 생성';
+    const btn = el('button', 'detail__generate', label);
     btn.addEventListener('click', async () => {
       btn.disabled = true;
       btn.textContent = '생성 중…';
       try {
-        const detail = await generateDetail(pick);
+        const detail = await generateDetail(pick);   // 캐시 무시하고 현재 설정으로 새로 생성
         cacheDetail(pick, detail);
-        renderDetailBody(pick); // 재렌더(생성 결과 반영)
+        renderDetailBody(pick);                       // 재렌더(생성 결과 반영)
+        document.getElementById('detailClose').focus(); // 포커스를 모달 내부로 유지
       } catch (err) {
         btn.disabled = false;
-        btn.textContent = 'AI로 상세 생성';
+        btn.textContent = label;
         const hint = wrap.querySelector('.detail__gen-hint') || el('p', 'detail__gen-hint');
         hint.textContent = `생성 실패: ${err.message}`;
         wrap.append(hint);
