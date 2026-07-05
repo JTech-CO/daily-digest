@@ -197,13 +197,13 @@ function section(label, text, { markdown = false, copyable = false } = {}) {
   return sec;
 }
 
-// pick의 유효 상세 = 브라우저 생성 캐시(사용자의 명시적 생성이 우선) → 파이프라인 사전 생성
+// pick의 유효 상세 = 파이프라인 전문 기반 생성이 우선 → 브라우저 캐시(초록 기반 폴백)
 function effectiveDetail(pick) {
   const cached = cachedDetail(pick);
   return {
-    translation: cached?.translation || pick.detail_translation || null,
-    summary: cached?.summary || pick.detail_summary || null,
-    blog: cached?.blog || pick.detail_blog || null,
+    translation: pick.detail_translation || cached?.translation || null,
+    summary: pick.detail_summary || cached?.summary || null,
+    blog: pick.detail_blog || cached?.blog || null,
   };
 }
 
@@ -247,11 +247,13 @@ function generateControl(pick, incomplete) {
         wrap.append(hint);
       }
     });
-    wrap.append(btn, el('span', 'detail__gen-hint', ` ${PROVIDERS[cfg.provider]?.label ?? cfg.provider} · ${cfg.model}`));
+    // 브라우저 생성은 CORS로 전문을 못 가져와 초록 기반이다. 전문 기반은 파이프라인(서버).
+    wrap.append(btn, el('span', 'detail__gen-hint',
+      ` ${PROVIDERS[cfg.provider]?.label ?? cfg.provider} · ${cfg.model} · 초록 기반(전문 기반은 파이프라인에서 생성)`));
   } else {
     const btn = el('button', 'detail__generate', '⚙ 설정에서 API 키 입력');
     btn.addEventListener('click', () => { closeDetail(); openSettings(); });
-    wrap.append(btn, el('p', 'detail__gen-hint', 'API 키를 입력하면 이 글의 번역·요약·블로그 초안을 브라우저에서 직접 생성합니다.'));
+    wrap.append(btn, el('p', 'detail__gen-hint', 'API 키를 입력하면 이 글의 초록 기반 번역·요약·블로그 초안을 브라우저에서 생성합니다(전문 기반은 파이프라인).'));
   }
   return wrap;
 }

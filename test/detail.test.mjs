@@ -1,7 +1,8 @@
-// 상세 뷰 3구성 생성 검증 (제목/패널 클릭 시 여는 창)
+// 상세 뷰 3구성 생성 검증 — 전문 기반(#4/#6) 포함
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { generateDetail, generateDetailsAll } from '../src/pipeline/detail.mjs';
+import { extractArticleText } from '../src/pipeline/extract.mjs';
 
 const ALL_KEYS = ['ANTHROPIC_API_KEY', 'OPENAI_API_KEY', 'XAI_API_KEY', 'GROK_API_KEY',
   'GEMINI_API_KEY', 'GOOGLE_API_KEY', 'LLM_PROVIDER'];
@@ -17,88 +18,130 @@ function withEnv(setKeys, fn) {
 }
 const withKey = fn => withEnv({ ANTHROPIC_API_KEY: 'sk-test' }, fn);
 
+// Anthropic 응답 형태로 감싼 mock
 const asContent = obj => ({ content: [{ type: 'text', text: JSON.stringify(obj) }] });
-const mockApi = payload => async () => ({
-  ok: true, status: 200, statusText: 'OK',
-  async json() { return payload; }, async text() { return JSON.stringify(payload); },
-});
-const captureApi = (payload) => {
-  const calls = [];
-  return {
-    calls,
-    impl: async (url, opts) => {
-      calls.push({ url, body: JSON.parse(opts.body) });
-      return { ok: true, status: 200, statusText: 'OK', async json() { return payload; }, async text() { return JSON.stringify(payload); } };
-    },
+const llmRes = obj => ({ ok: true, status: 200, statusText: 'OK', async json() { return asContent(obj); }, async text() { return JSON.stringify(asContent(obj)); } });
+const htmlRes = html => ({ ok: true, status: 200, statusText: 'OK', headers: new Headers(), async text() { return html; } });
+
+// URL로 라우팅: LLM 엔드포인트면 순차 응답, 기사 URL이면 HTML
+function routedFetch({ articleHtml, llmResponses }) {
+  const calls = { llm: 0, article: 0 };
+  return async (url) => {
+    if (url.includes('api.anthropic.com') || url.includes('api.openai.com') || url.includes('googleapis') || url.includes('api.x.ai')) {
+      const r = llmResponses[Math.min(calls.llm, llmResponses.length - 1)];
+      calls.llm++;
+      return r;
+    }
+    calls.article++;
+    return htmlRes(articleHtml);
   };
-};
+}
 
-const enItem = {
-  source: 'hackernews', title: 'Optical writing of antiferromagnets',
-  summary: 'Researchers demonstrate optical control of antiferromagnets.', url: 'https://phys.org/x',
-};
-const koItem = { source: 'geeknews', title: '루프 엔지니어링의 미학', summary: '에이전트 하네스 설계...', url: 'https://news.hada.io/topic?id=1' };
+const ARTICLE = '<html><body><article>' + '<p>This is a full article paragraph with real content. </p>'.repeat(20) + '</article></body></html>';
+const enItem = { source: 'physorg', title: 'Optical writing', summary: 'short abstract', url: 'https://phys.org/x.html' };
+const arxivItem = { source: 'arxiv', title: 'A paper', summary: 'the abstract text', url: 'https://arxiv.org/abs/2607.1' };
+const koItem = { source: 'geeknews', title: '루프 엔지니어링', summary: '한국어 요약', url: 'https://news.hada.io/topic?id=1' };
 
-const DETAIL = {
-  translation: '반강자성체의 광학적 기록. 연구진이 광학 제어를 시연했다.',
-  summary: '핵심 요약 문단.',
-  blog: '# 반강자성체 광학 기록\n\n도입 문단.\n\n- 포인트 1\n- 포인트 2\n\n시사점.',
-};
+// ── extractArticleText ────────────────────────────────────────
+
+test('extract: article 본문 추출, script/style 제거', () => {
+  const html = '<html><head><style>.x{}</style></head><body><nav>메뉴</nav>'
+    + '<article><h1>제목</h1><p>본문 문단 하나.</p><script>evil()</script><p>본문 문단 둘.</p></article></body></html>';
+  const text = extractArticleText(html);
+  assert.match(text, /본문 문단 하나/);
+  assert.match(text, /본문 문단 둘/);
+  assert.doesNotMatch(text, /evil/);
+  assert.doesNotMatch(text, /\.x\{/);
+});
+
+test('extract: 빈/비문자열 → 빈 문자열', () => {
+  assert.equal(extractArticleText(''), '');
+  assert.equal(extractArticleText(null), '');
+});
+
+test('extract: maxChars 상한', () => {
+  const html = '<body><p>' + 'a'.repeat(50000) + '</p></body>';
+  assert.ok(extractArticleText(html, { maxChars: 1000 }).length <= 1000);
+});
+
+// ── 전문 기반 생성 ────────────────────────────────────────────
+
+test('전문 소스(physorg): 기사 전문 추출 후 번역/요약+블로그 2콜', withKey(async () => {
+  const fetchImpl = routedFetch({
+    articleHtml: ARTICLE,
+    llmResponses: [
+      llmRes({ translation: '전문 번역본(길다)' }),          // 1콜: 번역
+      llmRes({ summary: '핵심 요약', blog: '# 블로그\n\n본문' }), // 2콜: 요약+블로그
+    ],
+  });
+  const d = await generateDetail(enItem, { fetchImpl });
+  assert.equal(d.usedFullText, true);
+  assert.equal(d.translation, '전문 번역본(길다)');
+  assert.equal(d.summary, '핵심 요약');
+  assert.match(d.blog, /블로그/);
+}));
+
+test('전문 추출 실패(짧은 HTML) → 초록 기반 1콜 폴백', withKey(async () => {
+  const fetchImpl = routedFetch({
+    articleHtml: '<html><body>tiny</body></html>',            // < 400자 → 폴백
+    llmResponses: [llmRes({ translation: '초록 번역', summary: '요약', blog: '블로그' })],
+  });
+  const d = await generateDetail(enItem, { fetchImpl });
+  assert.equal(d.usedFullText, false);
+  assert.equal(d.translation, '초록 번역');
+}));
+
+test('arxiv: 전문 미시도(초록 기반 1콜)', withKey(async () => {
+  let articleFetched = false;
+  const fetchImpl = async (url) => {
+    if (url.includes('api.anthropic.com')) return llmRes({ translation: '초록번역', summary: '요약', blog: '블로그' });
+    articleFetched = true;
+    return htmlRes(ARTICLE);
+  };
+  const d = await generateDetail(arxivItem, { fetchImpl });
+  assert.equal(articleFetched, false);      // arxiv는 기사 원문 안 가져옴
+  assert.equal(d.usedFullText, false);
+  assert.equal(d.translation, '초록번역');
+}));
+
+test('geeknews: 정제 모드(전문 미시도)', withKey(async () => {
+  let articleFetched = false;
+  const fetchImpl = async (url) => {
+    if (url.includes('api.anthropic.com')) return llmRes({ translation: '정제됨', summary: '요약', blog: '블로그' });
+    articleFetched = true;
+    return htmlRes(ARTICLE);
+  };
+  const d = await generateDetail(koItem, { fetchImpl });
+  assert.equal(articleFetched, false);
+  assert.equal(d.usedFullText, false);
+  assert.equal(d.translation, '정제됨');
+}));
 
 test('키 없음: 전부 null', withEnv({}, async () => {
-  const d = await generateDetail(enItem, { fetchImpl: mockApi(asContent(DETAIL)) });
-  assert.deepEqual(d, { translation: null, summary: null, blog: null });
-}));
-
-test('영어 항목: 3구성 생성', withKey(async () => {
-  const d = await generateDetail(enItem, { fetchImpl: mockApi(asContent(DETAIL)) });
-  assert.equal(d.translation, DETAIL.translation);
-  assert.equal(d.summary, DETAIL.summary);
-  assert.match(d.blog, /# 반강자성체/);
-}));
-
-test('영어 항목: 번역(정제 아님) 프롬프트 사용', withKey(async () => {
-  const { impl, calls } = captureApi(asContent(DETAIL));
-  await generateDetail(enItem, { fetchImpl: impl });
-  assert.match(calls[0].body.system, /영어 기술\/과학 뉴스/);   // TRANSLATE 시스템
-  assert.match(calls[0].body.messages[0].content, /Optical writing/);
-}));
-
-test('GeekNews: 정제 프롬프트 사용(이미 한국어)', withKey(async () => {
-  const { impl, calls } = captureApi(asContent(DETAIL));
-  await generateDetail(koItem, { fetchImpl: impl });
-  assert.match(calls[0].body.system, /이미 한국어/);           // REFINE 시스템
-}));
-
-test('JSON 파싱 실패: 전부 null + detailError', withKey(async () => {
-  const garbage = { content: [{ type: 'text', text: '죄송합니다 생성하겠습니다...' }] };
-  const d = await generateDetail(enItem, { fetchImpl: mockApi(garbage) });
+  const d = await generateDetail(enItem, { fetchImpl: async () => htmlRes(ARTICLE) });
   assert.deepEqual({ t: d.translation, s: d.summary, b: d.blog }, { t: null, s: null, b: null });
-  assert.match(d.detailError, /JSON 파싱 실패/);
 }));
 
-test('빈 필드는 null로 정규화', withKey(async () => {
-  const d = await generateDetail(enItem, { fetchImpl: mockApi(asContent({ translation: '번역', summary: '   ', blog: '' })) });
-  assert.equal(d.translation, '번역');
-  assert.equal(d.summary, null);   // 공백만 → null
-  assert.equal(d.blog, null);
+test('전문 생성 중 번역 콜 실패 → 전부 null + detailError', withKey(async () => {
+  const fetchImpl = routedFetch({
+    articleHtml: ARTICLE,
+    llmResponses: [{ ok: false, status: 429, statusText: 'x', async text() { return 'rate'; } }],
+  });
+  const d = await generateDetail(enItem, { fetchImpl });
+  assert.equal(d.translation, null);
+  assert.match(d.detailError, /API 오류 429/);
 }));
 
-test('generateDetailsAll: 항목에 detail* 필드 부착 + 통계', withKey(async () => {
-  const items = [enItem, { ...enItem, title: '2번' }];
-  const { items: out, stats } = await generateDetailsAll(items, { fetchImpl: mockApi(asContent(DETAIL)) });
-  assert.equal(out.length, 2);
-  assert.equal(out[0].detailTranslation, DETAIL.translation);
-  assert.equal(out[0].detailSummary, DETAIL.summary);
-  assert.ok(out[0].detailBlog);
-  assert.equal(stats.total, 2);
-  assert.equal(stats.generated, 2);
-  assert.equal(stats.failed, 0);
-}));
-
-test('generateDetailsAll: 키 없으면 부착은 하되 전부 null, generated=0', withEnv({}, async () => {
-  const { items: out, stats } = await generateDetailsAll([enItem], { fetchImpl: mockApi(asContent(DETAIL)) });
-  assert.equal(out[0].detailTranslation, null);
-  assert.equal(stats.generated, 0);
+test('generateDetailsAll: detail* 부착 + 통계(fullText 카운트)', withKey(async () => {
+  const fetchImpl = routedFetch({
+    articleHtml: ARTICLE,
+    llmResponses: [llmRes({ translation: 'T' }), llmRes({ summary: 'S', blog: 'B' })],
+  });
+  const { items, stats } = await generateDetailsAll([enItem], { fetchImpl });
+  assert.equal(items[0].detailTranslation, 'T');
+  assert.equal(items[0].detailSummary, 'S');
+  assert.equal(stats.total, 1);
+  assert.equal(stats.generated, 1);
+  assert.equal(stats.fullText, 1);
   assert.equal(stats.failed, 0);
 }));

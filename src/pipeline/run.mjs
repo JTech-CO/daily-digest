@@ -37,9 +37,9 @@ export async function runPipeline({ windowHours = 24, dbPath = 'daily-digest.db'
   const { items: translated, stats } = await translateAll(order);
   log(`  번역 ${stats.translated} / 정제 ${stats.refined} / 실패 ${stats.failed} (실패율 ${(stats.failureRate * 100).toFixed(1)}%)`);
 
-  // 상세 뷰(제목/패널 클릭)용 3구성 생성 — 원문 번역본·요약·블로그 초안
+  // 상세 뷰(제목/패널 클릭)용 3구성 생성 — 기사 전문 기반(원문 번역본·요약·블로그 초안)
   const { items, stats: detailStats } = await generateDetailsAll(translated);
-  log(`  상세 생성 ${detailStats.generated}/${detailStats.total} (실패 ${detailStats.failed})`);
+  log(`  상세 생성 ${detailStats.generated}/${detailStats.total} (전문 ${detailStats.fullText}, 실패 ${detailStats.failed})`);
 
   let saved = null;
   if (dbPath) {
