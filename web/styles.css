@@ -111,6 +111,21 @@ a:hover { text-decoration: underline; }
   text-align: center;
 }
 
+.statusline__actions { display: flex; align-items: center; gap: 10px; }
+.iconbtn {
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  font-size: 16px;
+  line-height: 1;
+  padding: 5px 7px;
+  cursor: pointer;
+  border-radius: 4px;
+  transition: color 150ms ease-out, background 150ms ease-out;
+}
+.iconbtn:hover { color: var(--text); background: var(--accent-subtle); }
+.iconbtn[data-configured="true"] { color: var(--accent); }
+
 /* ── 4.4 다크/라이트 토글 (pill 44×24) ────────────────────────── */
 .toggle { background: none; border: none; padding: 0; cursor: pointer; }
 .toggle__track {
@@ -373,6 +388,114 @@ a:hover { text-decoration: underline; }
 .detail__md .md__p { margin: 8px 0; }
 .detail__md .md__list { margin: 8px 0; padding-left: 20px; }
 .detail__md .md__list li { margin: 4px 0; }
+
+/* ── LLM 설정 모달 ────────────────────────────────────────────── */
+.settings[hidden] { display: none; }
+.settings {
+  position: fixed;
+  inset: 0;
+  z-index: 110;
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
+  overflow-y: auto;
+  padding: 64px 20px;
+}
+.settings__backdrop { position: fixed; inset: 0; background: color-mix(in srgb, var(--bg) 72%, transparent); }
+.settings__panel {
+  position: relative;
+  width: 100%;
+  max-width: 440px;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 24px 26px 26px;
+}
+.settings__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 20px;
+}
+.settings__title { font-size: 18px; font-weight: 600; margin: 0; }
+
+.field { display: block; margin-bottom: 16px; }
+.field__label {
+  display: block;
+  font-family: var(--font-mono);
+  font-size: 12px;
+  letter-spacing: .03em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  margin-bottom: 6px;
+}
+.field__input {
+  width: 100%;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  color: var(--text);
+  font-family: var(--font-mono);
+  font-size: 14px;
+  padding: 9px 11px;
+  transition: border-color 150ms ease-out;
+}
+.field__input:focus-visible { outline: none; border-color: var(--accent); }
+select.field__input { cursor: pointer; }
+
+.settings__note {
+  font-size: 13px;
+  line-height: 1.6;
+  color: var(--text-muted);
+  background: var(--accent-subtle);
+  border-radius: 6px;
+  padding: 10px 12px;
+  margin: 4px 0 20px;
+}
+.settings__note strong { color: var(--text); font-weight: 600; }
+
+.settings__actions { display: flex; justify-content: flex-end; gap: 10px; }
+.btn {
+  font-family: var(--font-sans);
+  font-size: 14px;
+  font-weight: 500;
+  padding: 8px 18px;
+  border-radius: 6px;
+  cursor: pointer;
+  border: 1px solid transparent;
+  transition: border-color 150ms ease-out, background 150ms ease-out, color 150ms ease-out;
+}
+.btn--ghost { background: none; border-color: var(--border); color: var(--text-muted); }
+.btn--ghost:hover { color: var(--text); border-color: var(--border-hover); }
+.btn--accent { background: var(--accent); color: #fff; }
+.btn--accent:hover { background: color-mix(in srgb, var(--accent) 88%, #000); }
+.settings__status { font-size: 13px; color: var(--text-muted); margin: 12px 0 0; min-height: 1em; text-align: right; }
+
+/* 상세 뷰 — 브라우저 직접 생성 버튼/상태 */
+.detail__gen {
+  border: 1px dashed var(--border-hover);
+  border-radius: 8px;
+  padding: 14px 16px;
+  margin-bottom: 4px;
+}
+.detail__generate {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-family: var(--font-sans);
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--accent);
+  background: var(--accent-subtle);
+  border: 1px solid transparent;
+  border-radius: 6px;
+  padding: 6px 12px;
+  cursor: pointer;
+  margin-top: 8px;
+}
+.detail__generate:hover { border-color: var(--accent); }
+.detail__generate:disabled { color: var(--text-dim); background: none; cursor: default; }
+.detail__gen-hint { font-size: 13px; color: var(--text-dim); margin: 4px 0 0; }
 
 /* ── 5. 모션 — reduced-motion 존중 ────────────────────────────── */
 @media (prefers-reduced-motion: reduce) {

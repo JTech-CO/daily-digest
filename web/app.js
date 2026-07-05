@@ -1,6 +1,11 @@
 // daily-digest 프론트엔드 — 디자인 백서 §4, §6 구현
 // data.json(빌드 시 DB에서 생성)을 읽어 날짜별 다이제스트를 렌더링한다.
 
+import {
+  PROVIDERS, defaultModelFor, getConfig, saveConfig, clearConfig, hasConfig,
+  generateDetail, cachedDetail, cacheDetail,
+} from './llm.js';
+
 // 소스 식별을 명확히 하기 위해 축약 대신 전체 명칭을 대문자로 표기
 const BADGE = {
   hackernews: 'HACKER NEWS', geeknews: 'GEEKNEWS', arxiv: 'ARXIV',
@@ -157,7 +162,7 @@ function renderMarkdown(md) {
   return frag;
 }
 
-function section(label, text, { markdown = false, copyable = false } = {}) {
+function section(label, text, { markdown = false, copyable = false, fallback = null } = {}) {
   const sec = el('section', 'detail__section');
   const header = el('div', 'detail__section-head');
   header.append(el('span', 'detail__label', label));
@@ -173,10 +178,67 @@ function section(label, text, { markdown = false, copyable = false } = {}) {
   if (text) {
     sec.append(markdown ? (() => { const d = el('div', 'detail__md'); d.append(renderMarkdown(text)); return d; })()
       : el('p', 'detail__text', text));
+  } else if (fallback) {
+    sec.append(el('p', 'detail__text', fallback));
   } else {
-    sec.append(el('p', 'detail__missing', 'LLM 키를 설정하고 파이프라인을 다시 실행하면 생성됩니다.'));
+    sec.append(el('p', 'detail__missing', '아직 생성되지 않았습니다.'));
   }
   return sec;
+}
+
+// pick의 유효 상세 = 사전 생성(파이프라인) → 브라우저 캐시 순
+function effectiveDetail(pick) {
+  const cached = cachedDetail(pick);
+  return {
+    translation: pick.detail_translation || cached?.translation || null,
+    summary: pick.detail_summary || cached?.summary || null,
+    blog: pick.detail_blog || cached?.blog || null,
+  };
+}
+
+function renderDetailBody(pick) {
+  const body = document.getElementById('detailBody');
+  const d = effectiveDetail(pick);
+  const summaryFallback = pick.summary_ko || pick.summary_original || null;
+
+  body.replaceChildren(
+    section('원문 번역본', d.translation, { fallback: summaryFallback }),
+    section('핵심 요약', d.summary),
+    section('블로그 글 작성용 초안', d.blog, { markdown: true, copyable: true }),
+  );
+
+  // 3구성 중 하나라도 비었으면 브라우저 직접 생성 안내/버튼을 상단에 추가
+  const incomplete = !d.translation || !d.summary || !d.blog;
+  if (incomplete) body.prepend(generateControl(pick));
+}
+
+function generateControl(pick) {
+  const wrap = el('div', 'detail__gen');
+  if (hasConfig()) {
+    const btn = el('button', 'detail__generate', 'AI로 상세 생성');
+    const cfg = getConfig();
+    btn.addEventListener('click', async () => {
+      btn.disabled = true;
+      btn.textContent = '생성 중…';
+      try {
+        const detail = await generateDetail(pick);
+        cacheDetail(pick, detail);
+        renderDetailBody(pick); // 재렌더(생성 결과 반영)
+      } catch (err) {
+        btn.disabled = false;
+        btn.textContent = 'AI로 상세 생성';
+        const hint = wrap.querySelector('.detail__gen-hint') || el('p', 'detail__gen-hint');
+        hint.textContent = `생성 실패: ${err.message}`;
+        wrap.append(hint);
+      }
+    });
+    wrap.append(btn, el('span', 'detail__gen-hint', ` ${PROVIDERS[cfg.provider]?.label ?? cfg.provider} · ${cfg.model}`));
+  } else {
+    const btn = el('button', 'detail__generate', '⚙ 설정에서 API 키 입력');
+    btn.addEventListener('click', () => { closeDetail(); openSettings(); });
+    wrap.append(btn, el('p', 'detail__gen-hint', 'API 키를 입력하면 이 글의 번역·요약·블로그 초안을 브라우저에서 직접 생성합니다.'));
+  }
+  return wrap;
 }
 
 function openDetail(pick) {
@@ -193,15 +255,9 @@ function openDetail(pick) {
   // 번역된 항목만 원제 병기(GeekNews 등 원문=한국어면 생략)
   orig.textContent = pick.is_translated && pick.title_original ? pick.title_original : '';
   orig.hidden = !orig.textContent;
-  const src = document.getElementById('detailSource');
-  src.href = pick.url;
+  document.getElementById('detailSource').href = pick.url;
 
-  const body = document.getElementById('detailBody');
-  body.replaceChildren(
-    section('원문 번역본', pick.detail_translation || pick.summary_ko || pick.summary_original),
-    section('핵심 요약', pick.detail_summary),
-    section('블로그 글 작성용 초안', pick.detail_blog, { markdown: true, copyable: true }),
-  );
+  renderDetailBody(pick);
 
   modal.hidden = false;
   document.body.style.overflow = 'hidden';
@@ -220,7 +276,78 @@ function setupDetail() {
   const modal = document.getElementById('detail');
   document.getElementById('detailClose').addEventListener('click', closeDetail);
   modal.querySelectorAll('[data-close]').forEach(n => n.addEventListener('click', closeDetail));
-  document.addEventListener('keydown', (e) => { if (e.key === 'Escape') closeDetail(); });
+  document.addEventListener('keydown', (e) => { if (e.key === 'Escape') { closeDetail(); closeSettings(); } });
+}
+
+// ── LLM 설정 모달 ──────────────────────────────────────────────
+let settingsLastFocused = null;
+
+// ⚙ 버튼: 키가 설정돼 있으면 액센트 색으로 표시
+function syncSettingsIndicator() {
+  document.getElementById('settingsBtn').dataset.configured = hasConfig() ? 'true' : 'false';
+}
+
+function openSettings() {
+  settingsLastFocused = document.activeElement;
+  const cfg = getConfig();
+  const providerSel = document.getElementById('settingsProvider');
+  const modelInput = document.getElementById('settingsModel');
+  const keyInput = document.getElementById('settingsKey');
+
+  providerSel.value = cfg?.provider || 'anthropic';
+  modelInput.value = cfg?.model || defaultModelFor(providerSel.value);
+  keyInput.value = cfg?.apiKey || '';
+  document.getElementById('settingsStatus').textContent = '';
+
+  document.getElementById('settings').hidden = false;
+  document.body.style.overflow = 'hidden';
+  providerSel.focus();
+}
+
+function closeSettings() {
+  const modal = document.getElementById('settings');
+  if (modal.hidden) return;
+  modal.hidden = true;
+  document.body.style.overflow = '';
+  if (settingsLastFocused && settingsLastFocused.focus) settingsLastFocused.focus();
+}
+
+function setupSettings() {
+  const providerSel = document.getElementById('settingsProvider');
+  const modelInput = document.getElementById('settingsModel');
+  const keyInput = document.getElementById('settingsKey');
+  const status = document.getElementById('settingsStatus');
+
+  syncSettingsIndicator();
+
+  document.getElementById('settingsBtn').addEventListener('click', openSettings);
+  document.getElementById('settingsClose').addEventListener('click', closeSettings);
+  document.querySelectorAll('[data-close-settings]').forEach(n => n.addEventListener('click', closeSettings));
+
+  // 프로바이더 변경 시 모델 입력을 그 기본값으로 채운다(비었거나 다른 프로바이더 기본값일 때만)
+  providerSel.addEventListener('change', () => {
+    const current = modelInput.value.trim();
+    const isDefault = Object.values(PROVIDERS).some(p => p.defaultModel === current);
+    if (!current || isDefault) modelInput.value = defaultModelFor(providerSel.value);
+    const risk = PROVIDERS[providerSel.value]?.corsRisk;
+    status.textContent = risk ? '⚠ 이 프로바이더는 브라우저 직접 호출이 CORS로 막힐 수 있습니다.' : '';
+  });
+
+  document.getElementById('settingsSave').addEventListener('click', () => {
+    const apiKey = keyInput.value.trim();
+    if (!apiKey) { status.textContent = 'API 키를 입력하세요.'; return; }
+    saveConfig({ provider: providerSel.value, model: modelInput.value, apiKey });
+    syncSettingsIndicator();
+    status.textContent = '저장되었습니다.';
+    setTimeout(closeSettings, 700);
+  });
+
+  document.getElementById('settingsClear').addEventListener('click', () => {
+    clearConfig();
+    keyInput.value = '';
+    syncSettingsIndicator();
+    status.textContent = '지워졌습니다.';
+  });
 }
 
 // ── 테마 토글 (§6) — 수동 선택이 항상 우선, 시스템 설정 미참조 ──
@@ -249,6 +376,7 @@ async function main() {
   setupTheme();
   setupNav();
   setupDetail();
+  setupSettings();
   try {
     const res = await fetch('data.json', { cache: 'no-cache' });
     if (!res.ok) throw new Error(`data.json ${res.status}`);
