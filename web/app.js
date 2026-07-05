@@ -2,7 +2,7 @@
 // data.json(빌드 시 DB에서 생성)을 읽어 날짜별 다이제스트를 렌더링한다.
 
 import {
-  PROVIDERS, defaultModelFor, getConfig, saveConfig, clearConfig, hasConfig,
+  PROVIDERS, defaultModelFor, modelsFor, getConfig, saveConfig, clearConfig, hasConfig,
   generateDetail, cachedDetail, cacheDetail,
 } from './llm.js';
 
@@ -178,11 +178,12 @@ function renderMarkdown(md) {
   return frag;
 }
 
-function section(label, text, { markdown = false, copyable = false, fallback = null } = {}) {
+// 콘텐츠가 있는 섹션만 만든다(생성 전에는 빈 섹션을 렌더하지 않음).
+function section(label, text, { markdown = false, copyable = false } = {}) {
   const sec = el('section', 'detail__section');
   const header = el('div', 'detail__section-head');
   header.append(el('span', 'detail__label', label));
-  if (copyable && text) {
+  if (copyable) {
     const btn = el('button', 'detail__copy', '복사');
     btn.addEventListener('click', async () => {
       try { await navigator.clipboard.writeText(text); btn.textContent = '복사됨'; setTimeout(() => (btn.textContent = '복사'), 1500); }
@@ -191,14 +192,8 @@ function section(label, text, { markdown = false, copyable = false, fallback = n
     header.append(btn);
   }
   sec.append(header);
-  if (text) {
-    sec.append(markdown ? (() => { const d = el('div', 'detail__md'); d.append(renderMarkdown(text)); return d; })()
-      : el('p', 'detail__text', text));
-  } else if (fallback) {
-    sec.append(el('p', 'detail__text', fallback));
-  } else {
-    sec.append(el('p', 'detail__missing', '아직 생성되지 않았습니다.'));
-  }
+  sec.append(markdown ? (() => { const d = el('div', 'detail__md'); d.append(renderMarkdown(text)); return d; })()
+    : el('p', 'detail__text', text));
   return sec;
 }
 
@@ -215,13 +210,14 @@ function effectiveDetail(pick) {
 function renderDetailBody(pick) {
   const body = document.getElementById('detailBody');
   const d = effectiveDetail(pick);
-  const summaryFallback = pick.summary_ko || pick.summary_original || null;
 
-  body.replaceChildren(
-    section('원문 번역본', d.translation, { fallback: summaryFallback }),
-    section('핵심 요약', d.summary),
-    section('블로그 글 작성용 초안', d.blog, { markdown: true, copyable: true }),
-  );
+  // 실제 생성된 구성만 표시한다. AI 미연동/미생성이면 해당 섹션(특히 원문 번역본)을
+  // 아예 렌더하지 않는다 — 초록을 번역본인 양 보여주지 않기 위함.
+  const sections = [];
+  if (d.translation) sections.push(section('원문 번역본', d.translation));
+  if (d.summary) sections.push(section('핵심 요약', d.summary));
+  if (d.blog) sections.push(section('블로그 글 작성용 초안', d.blog, { markdown: true, copyable: true }));
+  body.replaceChildren(...sections);
 
   const incomplete = !d.translation || !d.summary || !d.blog;
   // 키가 있으면 항상 (재)생성 버튼을 둔다 — 모델/프로바이더를 바꾼 뒤 다시 생성 가능해야 함.
@@ -309,15 +305,26 @@ function syncSettingsIndicator() {
   document.getElementById('settingsBtn').dataset.configured = hasConfig() ? 'true' : 'false';
 }
 
+// 모델 <select>를 해당 프로바이더의 모델 목록으로 채우고 selected를 지정
+function populateModelSelect(provider, selected) {
+  const sel = document.getElementById('settingsModel');
+  const models = modelsFor(provider);
+  const chosen = models.includes(selected) ? selected : defaultModelFor(provider);
+  sel.replaceChildren(...models.map(m => {
+    const o = document.createElement('option');
+    o.value = m; o.textContent = m; o.selected = m === chosen;
+    return o;
+  }));
+}
+
 function openSettings() {
   settingsLastFocused = document.activeElement;
   const cfg = getConfig();
   const providerSel = document.getElementById('settingsProvider');
-  const modelInput = document.getElementById('settingsModel');
   const keyInput = document.getElementById('settingsKey');
 
   providerSel.value = cfg?.provider || 'anthropic';
-  modelInput.value = cfg?.model || defaultModelFor(providerSel.value);
+  populateModelSelect(providerSel.value, cfg?.model);
   keyInput.value = cfg?.apiKey || '';
   document.getElementById('settingsStatus').textContent = '';
 
@@ -346,11 +353,9 @@ function setupSettings() {
   document.getElementById('settingsClose').addEventListener('click', closeSettings);
   document.querySelectorAll('[data-close-settings]').forEach(n => n.addEventListener('click', closeSettings));
 
-  // 프로바이더 변경 시 모델 입력을 그 기본값으로 채운다(비었거나 다른 프로바이더 기본값일 때만)
+  // 프로바이더 변경 시 모델 목록을 그 프로바이더 것으로 교체(기본 모델 선택)
   providerSel.addEventListener('change', () => {
-    const current = modelInput.value.trim();
-    const isDefault = Object.values(PROVIDERS).some(p => p.defaultModel === current);
-    if (!current || isDefault) modelInput.value = defaultModelFor(providerSel.value);
+    populateModelSelect(providerSel.value);
     const risk = PROVIDERS[providerSel.value]?.corsRisk;
     status.textContent = risk ? '⚠ 이 프로바이더는 브라우저 직접 호출이 CORS로 막힐 수 있습니다.' : '';
   });

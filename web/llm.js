@@ -13,6 +13,7 @@ const STORE_KEY = 'dd:llmConfig';
 export const PROVIDERS = {
   anthropic: {
     label: 'Anthropic (Claude)',
+    models: ['claude-sonnet-5', 'claude-opus-4-8'],
     defaultModel: 'claude-sonnet-5',
     corsRisk: false,
     build(apiKey, model, system, user, maxTokens) {
@@ -31,6 +32,7 @@ export const PROVIDERS = {
   },
   openai: {
     label: 'OpenAI',
+    models: ['gpt-5.5'],
     defaultModel: 'gpt-5.5',
     corsRisk: false,
     build(apiKey, model, system, user, maxTokens) {
@@ -48,6 +50,7 @@ export const PROVIDERS = {
   },
   grok: {
     label: 'Grok (xAI)',
+    models: ['grok-4.3'],
     defaultModel: 'grok-4.3',
     corsRisk: true, // 브라우저 직접 호출이 CORS로 막힐 수 있음
     build(apiKey, model, system, user, maxTokens) {
@@ -65,6 +68,7 @@ export const PROVIDERS = {
   },
   gemini: {
     label: 'Gemini',
+    models: ['gemini-3.5-flash'],
     defaultModel: 'gemini-3.5-flash',
     corsRisk: false,
     build(apiKey, model, system, user, maxTokens) {
@@ -84,6 +88,10 @@ export const PROVIDERS = {
 
 export function defaultModelFor(provider) {
   return PROVIDERS[provider]?.defaultModel ?? '';
+}
+
+export function modelsFor(provider) {
+  return PROVIDERS[provider]?.models ?? [];
 }
 
 /** 저장된 설정을 반환한다(없으면 null). */
