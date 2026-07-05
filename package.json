@@ -8,10 +8,10 @@
     "node": ">=22"
   },
   "scripts": {
-    "start": "node src/index.mjs",
+    "start": "node --env-file-if-exists=.env src/index.mjs",
     "build": "node src/web/build.mjs",
     "serve": "node src/web/serve.mjs",
-    "monitor": "node src/monitor.mjs",
+    "monitor": "node --env-file-if-exists=.env src/monitor.mjs",
     "test": "node --test \"test/*.test.mjs\""
   },
   "dependencies": {
