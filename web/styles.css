@@ -350,6 +350,19 @@ a:hover { text-decoration: underline; }
 .detail__source { font-family: var(--font-mono); font-size: 13px; color: var(--accent); }
 
 .detail__body { margin-top: 24px; display: flex; flex-direction: column; gap: 24px; }
+
+/* 출처 배지: 전문(파이프라인) / 초록(브라우저) */
+.detail__prov { margin-top: 4px; }
+.detail__prov-tag {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  letter-spacing: .02em;
+  color: var(--text-muted);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  padding: 2px 10px;
+}
+.detail__prov-tag--full { color: var(--cat); border-color: var(--cat); }
 .detail__section {
   border-top: 1px solid var(--border);
   padding-top: 16px;

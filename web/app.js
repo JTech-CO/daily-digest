@@ -200,10 +200,12 @@ function section(label, text, { markdown = false, copyable = false } = {}) {
 // pick의 유효 상세 = 파이프라인 전문 기반 생성이 우선 → 브라우저 캐시(초록 기반 폴백)
 function effectiveDetail(pick) {
   const cached = cachedDetail(pick);
+  const fromPipeline = !!(pick.detail_translation || pick.detail_summary || pick.detail_blog);
   return {
     translation: pick.detail_translation || cached?.translation || null,
     summary: pick.detail_summary || cached?.summary || null,
     blog: pick.detail_blog || cached?.blog || null,
+    fromPipeline, // 표시된 콘텐츠가 파이프라인(전문) 출처인지
   };
 }
 
@@ -211,18 +213,30 @@ function renderDetailBody(pick) {
   const body = document.getElementById('detailBody');
   const d = effectiveDetail(pick);
 
-  // 실제 생성된 구성만 표시한다. AI 미연동/미생성이면 해당 섹션(특히 원문 번역본)을
-  // 아예 렌더하지 않는다 — 초록을 번역본인 양 보여주지 않기 위함.
+  // 실제 생성된 구성만 표시한다(빈 섹션·초록 오표시 방지).
   const sections = [];
   if (d.translation) sections.push(section('원문 번역본', d.translation));
   if (d.summary) sections.push(section('핵심 요약', d.summary));
   if (d.blog) sections.push(section('블로그 글 작성용 초안', d.blog, { markdown: true, copyable: true }));
-  body.replaceChildren(...sections);
 
+  const children = [];
+  if (sections.length) {
+    // 출처 배지: 전문(파이프라인) vs 초록(브라우저)
+    const prov = el('div', 'detail__prov');
+    prov.append(el('span', `detail__prov-tag${d.fromPipeline ? ' detail__prov-tag--full' : ''}`,
+      d.fromPipeline ? '전문 기반 · 파이프라인' : '초록 기반 · 브라우저 생성'));
+    children.push(prov, ...sections);
+  }
+
+  // 파이프라인이 3구성을 모두 채웠으면 브라우저(초록) 재생성 버튼은 숨긴다
+  // (파이프라인 우선이라 브라우저 재생성 결과가 표시되지 않아 무의미).
+  const pipelineComplete = !!(pick.detail_translation && pick.detail_summary && pick.detail_blog);
   const incomplete = !d.translation || !d.summary || !d.blog;
-  // 키가 있으면 항상 (재)생성 버튼을 둔다 — 모델/프로바이더를 바꾼 뒤 다시 생성 가능해야 함.
-  // 키가 없고 비어 있으면 설정 유도 버튼을 둔다.
-  if (hasConfig() || incomplete) body.prepend(generateControl(pick, incomplete));
+  if (!pipelineComplete && (hasConfig() || incomplete)) {
+    children.push(generateControl(pick, incomplete));
+  }
+
+  body.replaceChildren(...children);
 }
 
 function generateControl(pick, incomplete) {
