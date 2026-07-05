@@ -41,6 +41,15 @@ function signalLabel(pick) {
 function renderPick(pick, index) {
   const article = el('article', 'pick');
   article.style.setProperty('--cat', `var(--source-${pick.source})`);
+  // 제목/패널 클릭 → 상세 뷰(원문 링크는 아래 pick__link만)
+  article.tabIndex = 0;
+  article.setAttribute('role', 'button');
+  article.setAttribute('aria-haspopup', 'dialog');
+  const open = () => openDetail(pick);
+  article.addEventListener('click', (e) => { if (!e.target.closest('a')) open(); });
+  article.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); open(); }
+  });
 
   const head = el('div', 'pick__head');
   head.append(
@@ -49,12 +58,7 @@ function renderPick(pick, index) {
     el('span', 'pick__signal', signalLabel(pick)),
   );
 
-  const title = el('h3', 'pick__title');
-  const titleLink = el('a', null, pick.title_ko || pick.title_original);
-  titleLink.href = pick.url;
-  titleLink.target = '_blank';
-  titleLink.rel = 'noopener noreferrer';
-  title.append(titleLink);
+  const title = el('h3', 'pick__title', pick.title_ko || pick.title_original);
 
   article.append(head, title);
 
@@ -130,6 +134,95 @@ function renderArchive() {
   });
 }
 
+// ── 상세 뷰(모달) ──────────────────────────────────────────────
+let lastFocused = null;
+
+// LLM 출력 마크다운을 안전하게(textContent만) DOM으로 렌더 — 제목/불릿/문단만 지원
+function renderMarkdown(md) {
+  const frag = document.createDocumentFragment();
+  let list = null;
+  for (const raw of md.split('\n')) {
+    const line = raw.trimEnd();
+    const bullet = line.match(/^\s*[-*]\s+(.*)$/);
+    const heading = line.match(/^(#{1,6})\s+(.*)$/);
+    if (bullet) {
+      if (!list) { list = el('ul', 'md__list'); frag.append(list); }
+      list.append(el('li', null, bullet[1]));
+      continue;
+    }
+    list = null;
+    if (heading) frag.append(el(`h${Math.min(heading[1].length + 2, 6)}`, 'md__h', heading[2]));
+    else if (line.trim()) frag.append(el('p', 'md__p', line));
+  }
+  return frag;
+}
+
+function section(label, text, { markdown = false, copyable = false } = {}) {
+  const sec = el('section', 'detail__section');
+  const header = el('div', 'detail__section-head');
+  header.append(el('span', 'detail__label', label));
+  if (copyable && text) {
+    const btn = el('button', 'detail__copy', '복사');
+    btn.addEventListener('click', async () => {
+      try { await navigator.clipboard.writeText(text); btn.textContent = '복사됨'; setTimeout(() => (btn.textContent = '복사'), 1500); }
+      catch { btn.textContent = '복사 실패'; }
+    });
+    header.append(btn);
+  }
+  sec.append(header);
+  if (text) {
+    sec.append(markdown ? (() => { const d = el('div', 'detail__md'); d.append(renderMarkdown(text)); return d; })()
+      : el('p', 'detail__text', text));
+  } else {
+    sec.append(el('p', 'detail__missing', 'LLM 키를 설정하고 파이프라인을 다시 실행하면 생성됩니다.'));
+  }
+  return sec;
+}
+
+function openDetail(pick) {
+  lastFocused = document.activeElement;
+  const modal = document.getElementById('detail');
+  const panel = modal.querySelector('.detail__panel');
+  panel.style.setProperty('--cat', `var(--source-${pick.source})`);
+
+  document.getElementById('detailBadge').textContent = BADGE[pick.source] ?? pick.source;
+  document.getElementById('detailBadge').style.color = `var(--source-${pick.source})`;
+  document.getElementById('detailSignal').textContent = signalLabel(pick);
+  document.getElementById('detailTitle').textContent = pick.title_ko || pick.title_original;
+  const orig = document.getElementById('detailOrig');
+  // 번역된 항목만 원제 병기(GeekNews 등 원문=한국어면 생략)
+  orig.textContent = pick.is_translated && pick.title_original ? pick.title_original : '';
+  orig.hidden = !orig.textContent;
+  const src = document.getElementById('detailSource');
+  src.href = pick.url;
+
+  const body = document.getElementById('detailBody');
+  body.replaceChildren(
+    section('원문 번역본', pick.detail_translation || pick.summary_ko || pick.summary_original),
+    section('핵심 요약', pick.detail_summary),
+    section('블로그 글 작성용 초안', pick.detail_blog, { markdown: true, copyable: true }),
+  );
+
+  modal.hidden = false;
+  document.body.style.overflow = 'hidden';
+  document.getElementById('detailClose').focus();
+}
+
+function closeDetail() {
+  const modal = document.getElementById('detail');
+  if (modal.hidden) return;
+  modal.hidden = true;
+  document.body.style.overflow = '';
+  if (lastFocused && lastFocused.focus) lastFocused.focus();
+}
+
+function setupDetail() {
+  const modal = document.getElementById('detail');
+  document.getElementById('detailClose').addEventListener('click', closeDetail);
+  modal.querySelectorAll('[data-close]').forEach(n => n.addEventListener('click', closeDetail));
+  document.addEventListener('keydown', (e) => { if (e.key === 'Escape') closeDetail(); });
+}
+
 // ── 테마 토글 (§6) — 수동 선택이 항상 우선, 시스템 설정 미참조 ──
 function setupTheme() {
   const btn = document.getElementById('themeToggle');
@@ -155,6 +248,7 @@ function setupNav() {
 async function main() {
   setupTheme();
   setupNav();
+  setupDetail();
   try {
     const res = await fetch('data.json', { cache: 'no-cache' });
     if (!res.ok) throw new Error(`data.json ${res.status}`);

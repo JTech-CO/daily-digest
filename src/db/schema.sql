@@ -15,6 +15,10 @@ CREATE TABLE IF NOT EXISTS daily_picks (
   selection_reason TEXT NOT NULL,   -- primary | redistributed
   is_translated INTEGER NOT NULL,   -- GeekNews 정제-only 항목은 0
   rank INTEGER NOT NULL,            -- 해당 날짜 내 노출 순번(1-based)
+  -- 상세 뷰(제목/패널 클릭 시)용 사전 생성 콘텐츠. LLM 키 없으면 NULL.
+  detail_translation TEXT,          -- 원문 번역본(제목+요약 기반)
+  detail_summary TEXT,              -- 핵심 요약(한두 문단)
+  detail_blog TEXT,                 -- 기술 블로그 초안(마크다운)
   created_at TEXT DEFAULT (datetime('now')),
   UNIQUE(source, source_item_id)
 );

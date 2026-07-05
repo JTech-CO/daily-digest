@@ -156,6 +156,8 @@ a:hover { text-decoration: underline; }
   transition: border-color 150ms ease-out;
 }
 .pick:hover { border-color: var(--border-hover); border-left-color: var(--cat); }
+.pick { cursor: pointer; }
+.pick:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 
 .pick__head {
   display: flex;
@@ -265,6 +267,113 @@ a:hover { text-decoration: underline; }
 
 .empty { color: var(--text-muted); padding: 32px 0; text-align: center; }
 
+/* ── 상세 뷰(모달) — 소스 카테고리 색 강조 ───────────────────── */
+.detail[hidden] { display: none; }
+.detail {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
+  overflow-y: auto;
+  padding: 48px 20px;
+}
+.detail__backdrop {
+  position: fixed;
+  inset: 0;
+  background: color-mix(in srgb, var(--bg) 72%, transparent);
+}
+.detail__panel {
+  position: relative;
+  width: 100%;
+  max-width: 720px;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  border-top: 3px solid var(--cat);       /* 소스 카테고리 색 강조 */
+  border-radius: 10px;
+  padding: 24px 28px 32px;
+}
+.detail__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+.detail__meta { display: flex; align-items: baseline; gap: 10px; }
+.detail__badge {
+  font-family: var(--font-mono);
+  font-size: 13px;
+  font-weight: 500;
+  letter-spacing: .02em;
+  text-transform: uppercase;
+}
+.detail__signal { font-family: var(--font-mono); font-size: 13px; color: var(--text-muted); }
+.detail__close {
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  font-size: 18px;
+  line-height: 1;
+  padding: 6px;
+  cursor: pointer;
+  border-radius: 4px;
+}
+.detail__close:hover { color: var(--text); background: var(--accent-subtle); }
+.detail__title {
+  font-size: 22px;
+  font-weight: 600;
+  line-height: 1.35;
+  margin: 12px 0 4px;
+}
+.detail__orig[hidden] { display: none; }
+.detail__orig {
+  font-size: 14px;
+  color: var(--text-muted);
+  margin: 0 0 12px;
+}
+.detail__source { font-family: var(--font-mono); font-size: 13px; color: var(--accent); }
+
+.detail__body { margin-top: 24px; display: flex; flex-direction: column; gap: 24px; }
+.detail__section {
+  border-top: 1px solid var(--border);
+  padding-top: 16px;
+}
+.detail__section-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 10px;
+}
+.detail__label {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  letter-spacing: .04em;
+  text-transform: uppercase;
+  color: var(--cat);
+}
+.detail__copy {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: var(--text-muted);
+  background: none;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 3px 10px;
+  cursor: pointer;
+  transition: border-color 150ms ease-out, color 150ms ease-out;
+}
+.detail__copy:hover { color: var(--text); border-color: var(--border-hover); }
+.detail__text { font-size: 16px; line-height: 1.7; margin: 0; white-space: pre-wrap; }
+.detail__missing { font-size: 14px; color: var(--text-dim); margin: 0; }
+
+/* 블로그 초안 마크다운 */
+.detail__md { font-size: 15px; line-height: 1.7; }
+.detail__md .md__h { font-size: 17px; font-weight: 600; margin: 16px 0 8px; }
+.detail__md .md__p { margin: 8px 0; }
+.detail__md .md__list { margin: 8px 0; padding-left: 20px; }
+.detail__md .md__list li { margin: 4px 0; }
+
 /* ── 5. 모션 — reduced-motion 존중 ────────────────────────────── */
 @media (prefers-reduced-motion: reduce) {
   * { transition-duration: 0ms !important; }
@@ -274,4 +383,7 @@ a:hover { text-decoration: underline; }
 @media (max-width: 640px) {
   .statusline, .feed, .archive, .pagefoot { padding-left: 16px; padding-right: 16px; }
   .pick { padding: 16px; }
+  .detail { padding: 16px; }
+  .detail__panel { padding: 20px 18px 28px; }
+  .detail__title { font-size: 20px; }
 }

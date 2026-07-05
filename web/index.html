@@ -43,6 +43,25 @@
     <span id="foot"></span>
   </footer>
 
+  <!-- 상세 뷰: 제목/패널 클릭 시 열림. 소스 카테고리 색이 강조된다. -->
+  <div class="detail" id="detail" hidden>
+    <div class="detail__backdrop" data-close></div>
+    <div class="detail__panel" role="dialog" aria-modal="true" aria-labelledby="detailTitle" style="--cat: var(--border)">
+      <header class="detail__head">
+        <div class="detail__meta">
+          <span class="detail__badge" id="detailBadge"></span>
+          <span class="detail__signal" id="detailSignal"></span>
+        </div>
+        <button class="detail__close" id="detailClose" aria-label="닫기">✕</button>
+      </header>
+      <h2 class="detail__title" id="detailTitle"></h2>
+      <p class="detail__orig" id="detailOrig"></p>
+      <a class="detail__source" id="detailSource" target="_blank" rel="noopener noreferrer">원문 보기 ↗</a>
+
+      <div class="detail__body" id="detailBody"></div>
+    </div>
+  </div>
+
   <script src="app.js" type="module"></script>
 </body>
 </html>

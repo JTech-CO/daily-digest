@@ -21,7 +21,19 @@ export function openDb(path = 'daily-digest.db') {
   const db = new DatabaseSync(path);
   db.exec('PRAGMA journal_mode = WAL;');
   db.exec(readFileSync(SCHEMA_PATH, 'utf8'));
+  migrate(db);
   return db;
+}
+
+/** 기존 DB에 신규 컬럼을 멱등적으로 추가한다(누적 DB가 스키마 변경을 따라가도록). */
+function migrate(db) {
+  const cols = new Set(db.prepare('PRAGMA table_info(daily_picks)').all().map(r => r.name));
+  const addColumn = (name, type) => {
+    if (!cols.has(name)) db.exec(`ALTER TABLE daily_picks ADD COLUMN ${name} ${type}`);
+  };
+  addColumn('detail_translation', 'TEXT');
+  addColumn('detail_summary', 'TEXT');
+  addColumn('detail_blog', 'TEXT');
 }
 
 /**
@@ -39,11 +51,13 @@ export function savePicks(db, { pickDate, items, dedupLog = [] }) {
     INSERT INTO daily_picks (
       pick_date, source, source_item_id, title_original, title_ko,
       summary_original, summary_ko, url, popularity_signal, published_at,
-      selection_reason, is_translated, rank
+      selection_reason, is_translated, rank,
+      detail_translation, detail_summary, detail_blog
     ) VALUES (
       $pick_date, $source, $source_item_id, $title_original, $title_ko,
       $summary_original, $summary_ko, $url, $popularity_signal, $published_at,
-      $selection_reason, $is_translated, $rank
+      $selection_reason, $is_translated, $rank,
+      $detail_translation, $detail_summary, $detail_blog
     )
     ON CONFLICT(source, source_item_id) DO UPDATE SET
       pick_date = excluded.pick_date,
@@ -52,7 +66,11 @@ export function savePicks(db, { pickDate, items, dedupLog = [] }) {
       popularity_signal = excluded.popularity_signal,
       selection_reason = excluded.selection_reason,
       is_translated = excluded.is_translated,
-      rank = excluded.rank
+      rank = excluded.rank,
+      -- 새로 생성됐을 때만 덮어쓰고, 이번 실행에서 NULL이면 기존 값을 보존
+      detail_translation = COALESCE(excluded.detail_translation, daily_picks.detail_translation),
+      detail_summary = COALESCE(excluded.detail_summary, daily_picks.detail_summary),
+      detail_blog = COALESCE(excluded.detail_blog, daily_picks.detail_blog)
   `);
   const insertDedup = db.prepare(`
     INSERT INTO dedup_log (
@@ -83,6 +101,9 @@ export function savePicks(db, { pickDate, items, dedupLog = [] }) {
         selection_reason: c.selectionReason ?? 'primary',
         is_translated: c.isTranslated ? 1 : 0,
         rank: i + 1,
+        detail_translation: c.detailTranslation ?? null,
+        detail_summary: c.detailSummary ?? null,
+        detail_blog: c.detailBlog ?? null,
       });
       if (before) updated++; else inserted++;
     }

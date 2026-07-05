@@ -18,6 +18,7 @@ const PICK_FIELDS = [
   'rank', 'source', 'source_item_id', 'title_original', 'title_ko',
   'summary_original', 'summary_ko', 'url', 'popularity_signal',
   'published_at', 'selection_reason', 'is_translated',
+  'detail_translation', 'detail_summary', 'detail_blog',
 ];
 
 function buildData() {
