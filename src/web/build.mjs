@@ -7,11 +7,14 @@ import { readdirSync, mkdirSync, copyFileSync, writeFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
 import { openDb, listDates, getPicksByDate } from '../db/index.mjs';
+import { buildAtom, buildJsonFeed } from './feed.mjs';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..', '..');
 const WEB_DIR = join(ROOT, 'web');
 const PUBLIC_DIR = join(ROOT, 'public');
 const DB_PATH = join(ROOT, 'daily-digest.db');
+// 피드의 절대 URL 기준. 다른 곳에 배포하면 SITE_URL로 덮어쓴다.
+const SITE_URL = process.env.SITE_URL ?? 'https://jtech-co.github.io/daily-digest';
 
 // 프론트엔드가 쓰는 컬럼만 노출(원문/번역 병기, 표기 판단용 필드)
 const PICK_FIELDS = [
@@ -47,5 +50,13 @@ function copyStatic() {
 copyStatic();
 const data = buildData();
 writeFileSync(join(PUBLIC_DIR, 'data.json'), JSON.stringify(data));
+
+// 구독용 피드(Atom · JSON Feed) — 최근 30일치
+writeFileSync(join(PUBLIC_DIR, 'feed.xml'),
+  buildAtom(data, { siteUrl: SITE_URL, updated: data.generatedAt }));
+writeFileSync(join(PUBLIC_DIR, 'feed.json'),
+  JSON.stringify(buildJsonFeed(data, { siteUrl: SITE_URL })));
+
 console.log(`[build] public/ 생성 — ${data.dates.length}일치, `
-  + `${Object.values(data.picks).reduce((n, p) => n + p.length, 0)}건`);
+  + `${Object.values(data.picks).reduce((n, p) => n + p.length, 0)}건`
+  + ` (+ feed.xml, feed.json)`);

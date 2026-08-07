@@ -14,7 +14,10 @@ Hacker News · GeekNews · arXiv · Phys.org · TechXplore — 개발자·엔지
 
 **주요 기능**
 - **자동 큐레이션**: 5개 소스 병렬 수집 → 4단계 중복 제거 → 소스당 1건 선별(결손 시 재분배).
+  과거에 실린 항목은 다시 뽑지 않아 매일 새로운 글만 올라옵니다.
 - **한국어 상세 뷰**: 카드 클릭 시 원문 번역본·핵심 요약·블로그 초안(파이프라인은 기사 **전문 기반** 생성).
+- **검색 · 소스 필터**: 제목·요약을 원문/번역 모두 대상으로 즉시 검색하고, 소스 칩으로 좁혀 봅니다.
+- **구독 피드**: `feed.xml`(Atom) · `feed.json`(JSON Feed)을 매일 함께 발행합니다.
 - **멀티 LLM 프로바이더**: Anthropic · OpenAI · Grok(xAI) · Gemini 중 설정된 키로 동작. 사이트 우측 상단
   ⚙에서 본인 키를 직접 넣는 브라우저 생성(BYOK)도 지원.
 - **읽기 좋은 UI**: 다크/라이트 테마, 날짜별 아카이브, 소스별 색상 구분(단일 컬럼, 정보 밀도 중심).
@@ -55,7 +58,16 @@ Hacker News · GeekNews · arXiv · Phys.org · TechXplore — 개발자·엔지
    npm run build    # DB → 정적 사이트(public/) 생성
    npm run serve    # 로컬 미리보기 → http://localhost:4173
    ```
-   그 밖에: `npm test` (테스트) · `npm run monitor` (소스 엔드포인트 헬스체크)
+   그 밖에:
+   ```bash
+   npm test                          # 테스트
+   npm run monitor                   # 소스 엔드포인트 헬스체크
+   npm run backfill -- --dry         # 과거 항목 백필 대상 확인
+   npm run backfill -- --limit=20    # 과거 항목 번역·상세 소급 생성(LLM 키 필요)
+   ```
+
+   `npm start`는 실행 후 인베리언트를 검사합니다 — 게시 건수 부족, "키가 있는데 번역 0건",
+   실패율 초과 등이 발견되면 비-0으로 종료해 CI가 실패로 표시합니다(무증상 실패 방지).
 
 > **배포**: `git push` 후 GitHub Pages를 켜면 `.github/workflows/daily.yml`이 매일 09:00 KST에
 > 파이프라인을 실행하고 사이트를 자동 갱신합니다. LLM 키는 리포지토리 Secret으로 주입합니다.

@@ -108,18 +108,49 @@ function renderPick(pick, index) {
 }
 
 // ── 상태 ───────────────────────────────────────────────────────
-const state = { data: null, dateIndex: 0 };
+// query/sources가 비어 있으면 '날짜 모드', 하나라도 있으면 '검색 결과 모드'.
+// 두 모드가 같은 #feed를 공유한다. 별도 인덱스 파일은 만들지 않는다 —
+// data.json이 이미 전체를 담고 있어 클라이언트에서 바로 거를 수 있다.
+const state = { data: null, dateIndex: 0, query: '', sources: new Set() };
 
 function currentDate() {
   return state.data.dates[state.dateIndex]?.date ?? null;
 }
 
+const isFiltering = () => state.query.trim().length > 0 || state.sources.size > 0;
+
+/** 검색 대상 텍스트(번역·원문 모두) */
+function haystack(p) {
+  return [p.title_ko, p.title_original, p.summary_ko, p.summary_original, p.detail_summary]
+    .filter(Boolean).join(' ').toLowerCase();
+}
+
+/** 필터에 걸리는 항목을 최신 날짜순으로 반환 */
+function filteredPicks() {
+  const q = state.query.trim().toLowerCase();
+  const terms = q ? q.split(/\s+/) : [];
+  const out = [];
+  for (const { date } of state.data.dates) {
+    for (const p of state.data.picks[date] ?? []) {
+      if (state.sources.size > 0 && !state.sources.has(p.source)) continue;
+      if (terms.length > 0) {
+        const hay = haystack(p);
+        if (!terms.every(t => hay.includes(t))) continue;
+      }
+      out.push({ pick: p, date });
+    }
+  }
+  return out;
+}
+
 function render() {
   const feed = document.getElementById('feed');
   const dateLabel = document.getElementById('currentDate');
-  const date = currentDate();
   feed.replaceChildren();
 
+  if (isFiltering()) return renderResults(feed, dateLabel);
+
+  const date = currentDate();
   if (!date) {
     feed.append(el('p', 'empty', '아직 게시된 다이제스트가 없습니다.'));
     dateLabel.textContent = '—';
@@ -138,6 +169,25 @@ function render() {
   // 날짜 네비 상태 — dates는 최신순 정렬
   document.getElementById('prevDate').disabled = state.dateIndex >= state.data.dates.length - 1;
   document.getElementById('nextDate').disabled = state.dateIndex <= 0;
+}
+
+function renderResults(feed, dateLabel) {
+  const results = filteredPicks();
+  dateLabel.textContent = `검색 ${results.length}건`;
+  dateLabel.removeAttribute('datetime');
+  document.getElementById('prevDate').disabled = true;
+  document.getElementById('nextDate').disabled = true;
+
+  if (results.length === 0) {
+    feed.append(el('p', 'empty', '조건에 맞는 항목이 없습니다.'));
+    return;
+  }
+  results.forEach(({ pick, date }, i) => {
+    const card = renderPick(pick, i);
+    // 결과 카드엔 어느 날짜 것인지 표시
+    card.querySelector('.pick__meta')?.prepend(el('span', 'pick__date', date), el('span', 'pick__sep', '·'));
+    feed.append(card);
+  });
 }
 
 function renderArchive() {
@@ -406,6 +456,49 @@ function setupTheme() {
   });
 }
 
+// ── 검색 · 소스 필터 ───────────────────────────────────────────
+function setupSearch() {
+  const input = document.getElementById('search');
+  const chips = document.getElementById('sourceChips');
+
+  input.addEventListener('input', () => {
+    state.query = input.value;
+    render();
+    window.scrollTo(0, 0);
+  });
+  // Esc로 검색 해제(모달이 열려 있지 않을 때만)
+  input.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape' && input.value) {
+      e.stopPropagation();
+      input.value = '';
+      state.query = '';
+      render();
+    }
+  });
+
+  // 소스 칩 — data.json에 실제로 등장한 소스만 노출
+  const present = new Set();
+  for (const { date } of state.data.dates) {
+    for (const p of state.data.picks[date] ?? []) present.add(p.source);
+  }
+  chips.replaceChildren();
+  for (const source of ['hackernews', 'geeknews', 'arxiv', 'physorg', 'techxplore']) {
+    if (!present.has(source)) continue;
+    const chip = el('button', 'chip', BADGE[source] ?? source);
+    chip.style.setProperty('--cat', `var(--source-${source})`);
+    chip.setAttribute('aria-pressed', 'false');
+    chip.addEventListener('click', () => {
+      if (state.sources.has(source)) state.sources.delete(source);
+      else state.sources.add(source);
+      chip.classList.toggle('chip--on', state.sources.has(source));
+      chip.setAttribute('aria-pressed', String(state.sources.has(source)));
+      render();
+      window.scrollTo(0, 0);
+    });
+    chips.append(chip);
+  }
+}
+
 function setupNav() {
   document.getElementById('prevDate').addEventListener('click', () => {
     if (state.dateIndex < state.data.dates.length - 1) { state.dateIndex++; render(); }
@@ -428,6 +521,7 @@ async function main() {
     state.data = { dates: [], picks: {}, generatedAt: null };
     document.getElementById('foot').textContent = `데이터 로드 실패: ${err.message}`;
   }
+  setupSearch();
   render();
   renderArchive();
   const gen = state.data.generatedAt;

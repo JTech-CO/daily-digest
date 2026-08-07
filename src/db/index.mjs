@@ -34,6 +34,8 @@ function migrate(db) {
   addColumn('detail_translation', 'TEXT');
   addColumn('detail_summary', 'TEXT');
   addColumn('detail_blog', 'TEXT');
+  // 백필 처리 시각 — 결과가 비어도 재처리(재과금)하지 않도록 표시용
+  addColumn('backfilled_at', 'TEXT');
 }
 
 /**
@@ -133,6 +135,44 @@ export function savePicks(db, { pickDate, items, dedupLog = [] }) {
   }
 
   return { inserted, updated, removed, dedupRows: dedupLog.length };
+}
+
+/**
+ * 백필 대상 행을 반환한다 — 번역이 안 됐거나 상세가 비어 있고, 아직 백필하지 않은 항목.
+ * @param {object} [filter] { date, source, limit }
+ */
+export function getBackfillTargets(db, { date = null, source = null, limit = 50 } = {}) {
+  const where = ['backfilled_at IS NULL', "(is_translated = 0 OR detail_summary IS NULL)"];
+  const params = [];
+  if (date) { where.push('pick_date = ?'); params.push(date); }
+  if (source) { where.push('source = ?'); params.push(source); }
+  return db.prepare(
+    `SELECT id, pick_date, source, source_item_id, title_original, summary_original, url, published_at
+     FROM daily_picks WHERE ${where.join(' AND ')} ORDER BY pick_date DESC, rank ASC LIMIT ?`,
+  ).all(...params, limit);
+}
+
+/**
+ * 백필 결과를 해당 행에만 반영한다.
+ * savePicks는 그날 행을 전부 지우고 다시 넣으므로 행 단위 갱신에 쓰면 안 된다.
+ */
+export function updateItemContent(db, id, {
+  titleKo, summaryKo, isTranslated, detailTranslation, detailSummary, detailBlog,
+}) {
+  db.prepare(`
+    UPDATE daily_picks SET
+      title_ko = COALESCE(?, title_ko),
+      summary_ko = COALESCE(?, summary_ko),
+      is_translated = ?,
+      detail_translation = COALESCE(?, detail_translation),
+      detail_summary = COALESCE(?, detail_summary),
+      detail_blog = COALESCE(?, detail_blog),
+      backfilled_at = datetime('now')
+    WHERE id = ?
+  `).run(
+    titleKo ?? null, summaryKo ?? null, isTranslated ? 1 : 0,
+    detailTranslation ?? null, detailSummary ?? null, detailBlog ?? null, id,
+  );
 }
 
 /**

@@ -161,6 +161,47 @@ a:hover { text-decoration: underline; }
   gap: 16px;
 }
 
+/* ── 검색 · 소스 필터 ─────────────────────────────────────────── */
+.searchbar {
+  max-width: 680px;
+  margin: 0 auto;
+  padding: 20px 20px 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.searchbar__input {
+  width: 100%;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  color: var(--text);
+  font-family: var(--font-sans);
+  font-size: 14px;
+  padding: 9px 12px;
+  transition: border-color 150ms ease-out;
+}
+.searchbar__input::placeholder { color: var(--text-dim); }
+.searchbar__input:focus-visible { outline: none; border-color: var(--accent); }
+
+.searchbar__chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.chip {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  letter-spacing: .02em;
+  color: var(--text-muted);
+  background: none;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  padding: 3px 11px;
+  cursor: pointer;
+  transition: color 150ms ease-out, border-color 150ms ease-out;
+}
+.chip:hover { color: var(--text); border-color: var(--border-hover); }
+.chip--on { color: var(--cat); border-color: var(--cat); }
+
+.pick__date { font-family: var(--font-mono); font-size: 13px; color: var(--text-dim); }
+
 /* ── 4.1 다이제스트 카드 ──────────────────────────────────────── */
 .pick {
   background: var(--bg-elevated);
@@ -517,7 +558,7 @@ select.field__input { cursor: pointer; }
 
 /* ── 반응형: 640px 미만 좌우 패딩만 축소 (§3) ─────────────────── */
 @media (max-width: 640px) {
-  .statusline, .feed, .archive, .pagefoot { padding-left: 16px; padding-right: 16px; }
+  .statusline, .feed, .archive, .pagefoot, .searchbar { padding-left: 16px; padding-right: 16px; }
   .pick { padding: 16px; }
   .detail { padding: 16px; }
   .detail__panel { padding: 20px 18px 28px; }

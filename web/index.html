@@ -14,6 +14,8 @@
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css">
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&display=swap">
   <link rel="stylesheet" href="styles.css">
+  <link rel="alternate" type="application/atom+xml" title="daily-digest (Atom)" href="feed.xml">
+  <link rel="alternate" type="application/feed+json" title="daily-digest (JSON Feed)" href="feed.json">
   <!-- FOUC 방지: 저장된 테마를 렌더 전에 적용(외부 파일 — CSP script-src 'self') -->
   <script src="theme-init.js"></script>
 </head>
@@ -32,6 +34,12 @@
       </button>
     </div>
   </header>
+
+  <div class="searchbar">
+    <input id="search" class="searchbar__input" type="search" autocomplete="off"
+           placeholder="제목·요약 검색 (원문/번역 모두)" aria-label="검색">
+    <div class="searchbar__chips" id="sourceChips" role="group" aria-label="소스 필터"></div>
+  </div>
 
   <main class="feed" id="feed" aria-live="polite"></main>
 
