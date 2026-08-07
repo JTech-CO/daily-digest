@@ -16,6 +16,20 @@ import { askLlmJSON, hasLlm } from './llm.mjs';
 const FULLTEXT_SOURCES = new Set(['hackernews', 'physorg', 'techxplore']);
 const MIN_FULLTEXT_CHARS = 400; // 이보다 짧으면 추출 실패로 보고 초록 폴백
 
+// 기사 본문이 아니라 토론 스레드인 페이지 — 전문 추출 대상에서 제외한다.
+// (HN 셀프포스트(Ask/Show HN)는 url이 HN 아이템 페이지라, 추출하면 본문 대신
+//  댓글 수백 개가 "전문"으로 잡혀 댓글을 기사로 번역하게 된다. 실측 확인됨.
+//  이 경우 게시물 본문은 어댑터가 이미 summary(story_text)에 담아 둔다.)
+const DISCUSSION_HOSTS = new Set(['news.ycombinator.com', 'news.hada.io']);
+
+function isDiscussionPage(url) {
+  try {
+    return DISCUSSION_HOSTS.has(new URL(url).hostname.replace(/^www\./, ''));
+  } catch {
+    return false;
+  }
+}
+
 const NO_FABRICATION = '네비게이션·편집자 정보·"fact-checked" 같은 메타데이터는 무시하고 기사 본문만 대상으로 하며, 주어진 범위를 넘어 없는 사실을 지어내지 마라.';
 
 // 전문 기반
@@ -50,8 +64,8 @@ export async function generateDetail(item, { fetchImpl = fetch, forceRefine } = 
   const refineOnly = forceRefine ?? item.source === 'geeknews';
   if (refineOnly) return generateFromShort(item, SYS_REFINE, { fetchImpl, usedFullText: false });
 
-  // 전문 확보 시도(해당 소스만)
-  if (FULLTEXT_SOURCES.has(item.source)) {
+  // 전문 확보 시도(해당 소스만, 토론 페이지는 제외)
+  if (FULLTEXT_SOURCES.has(item.source) && !isDiscussionPage(item.url)) {
     let fullText = null;
     try {
       const html = await fetchText(item.source, item.url, { fetchImpl });
@@ -59,6 +73,12 @@ export async function generateDetail(item, { fetchImpl = fetch, forceRefine } = 
       if (text.length >= MIN_FULLTEXT_CHARS) fullText = text;
     } catch { /* 전문 실패 → 초록 폴백 */ }
     if (fullText) return generateFromFull(item, fullText, { fetchImpl });
+  }
+
+  // 전문도 요약도 없으면 생성하지 않는다 — 제목만으로는 LLM이 내용을 지어낸다.
+  // (HN 스토리 중 story_text가 없는 외부 링크 항목이 여기 해당)
+  if (!item.summary || !String(item.summary).trim()) {
+    return nulls({ usedFullText: false });
   }
 
   // 초록 기반(arxiv 또는 전문 추출 실패)

@@ -117,6 +117,35 @@ test('geeknews: 정제 모드(전문 미시도)', withKey(async () => {
   assert.equal(d.translation, '정제됨');
 }));
 
+test('HN 셀프포스트(토론 페이지)는 전문 추출을 시도하지 않는다 — 댓글 오인 방지', withKey(async () => {
+  let articleFetched = false;
+  const fetchImpl = async (url) => {
+    if (url.includes('api.anthropic.com')) return llmRes({ translation: '본문번역', summary: '요약', blog: '블로그' });
+    articleFetched = true;
+    return htmlRes(ARTICLE);
+  };
+  const selfPost = {
+    source: 'hackernews', title: 'Ask HN: something',
+    summary: '게시물 본문(story_text)', url: 'https://news.ycombinator.com/item?id=48886741',
+  };
+  const d = await generateDetail(selfPost, { fetchImpl });
+  assert.equal(articleFetched, false);   // 댓글 스레드를 가져오지 않음
+  assert.equal(d.usedFullText, false);
+  assert.equal(d.translation, '본문번역'); // story_text 기반 초록 경로로 생성
+}));
+
+test('전문도 요약도 없으면 생성하지 않는다(제목만으로 지어내기 방지)', withKey(async () => {
+  let llmCalled = false;
+  const fetchImpl = async (url) => {
+    if (url.includes('api.anthropic.com')) { llmCalled = true; return llmRes({ translation: 'x' }); }
+    return htmlRes('<html><body>tiny</body></html>');  // 전문 추출 실패
+  };
+  const bare = { source: 'hackernews', title: '제목만 있는 항목', summary: null, url: 'https://example.com/a' };
+  const d = await generateDetail(bare, { fetchImpl });
+  assert.equal(llmCalled, false);
+  assert.deepEqual({ t: d.translation, s: d.summary, b: d.blog }, { t: null, s: null, b: null });
+}));
+
 test('키 없음: 전부 null', withEnv({}, async () => {
   const d = await generateDetail(enItem, { fetchImpl: async () => htmlRes(ARTICLE) });
   assert.deepEqual({ t: d.translation, s: d.summary, b: d.blog }, { t: null, s: null, b: null });
