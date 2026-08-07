@@ -20,6 +20,9 @@ export const SOURCES = ['hackernews', 'geeknews', 'arxiv', 'physorg', 'techxplor
  * @param {string[]} [options.sources]
  * @param {number} [options.maxPerSource=3]
  * @param {null | ((a, b) => Promise<boolean>)} [options.classifyPair] 4차 dedup LLM 판정기
+ * @param {Set<string>} [options.excludeKeys] 과거에 이미 선택된 `source|sourceItemId` 집합.
+ *   같은 항목이 다른 날 다시 뽑히는 것을 막는다 — 콘텐츠 반복 방지이자,
+ *   저장 시 UNIQUE(source, source_item_id) 충돌로 과거 날짜에서 항목이 사라지는 것을 막는 방어.
  * @returns {Promise<{
  *   order: Array<object & { selectionReason: 'primary'|'redistributed' }>,
  *   picks: Record<string, object[]>,
@@ -32,7 +35,9 @@ export async function selectDaily(candidatesBySource, {
   sources = SOURCES,
   maxPerSource = 3,
   classifyPair = null,
+  excludeKeys = new Set(),
 } = {}) {
+  const isAlreadyPicked = c => excludeKeys.has(`${c.source}|${c.sourceItemId}`);
   const picks = {};
   const pools = {};
   const deficits = [];
@@ -52,6 +57,7 @@ export async function selectDaily(candidatesBySource, {
   for (const source of sources) {
     const pool = [];
     for (const candidate of candidatesBySource[source] ?? []) {
+      if (isAlreadyPicked(candidate)) continue; // 지난 날짜에 이미 실린 항목
       const dup = await findDuplicate(candidate, flatPicks(), { classifyPair });
       if (dup) { logDup(candidate, dup); continue; }
       pool.push(candidate);

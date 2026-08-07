@@ -49,6 +49,29 @@ test('savePicks: 같은 항목 재실행은 멱등(UPDATE), 중복 행 생성 �
   db.close();
 });
 
+test('savePicks: 같은 날 재실행에서 픽이 바뀌면 그날 행을 교체(옛 행 잔류 없음)', () => {
+  const db = openDb(':memory:');
+  savePicks(db, {
+    pickDate: '2026-08-07',
+    items: [item({ source: 'arxiv', sourceItemId: 'OLD' }), item({ source: 'hackernews', sourceItemId: 'H1' })],
+  });
+  assert.equal(getPicksByDate(db, '2026-08-07').length, 2);
+
+  // 재실행: arxiv 픽이 다른 논문으로 바뀜
+  const r = savePicks(db, {
+    pickDate: '2026-08-07',
+    items: [item({ source: 'arxiv', sourceItemId: 'NEW' }), item({ source: 'hackernews', sourceItemId: 'H1' })],
+  });
+  const rows = getPicksByDate(db, '2026-08-07');
+  assert.equal(rows.length, 2);                                   // 4건으로 불어나지 않음
+  assert.deepEqual(rows.map(x => x.source_item_id).sort(), ['H1', 'NEW']);
+  assert.deepEqual(rows.map(x => x.rank), [1, 2]);                // 순번 중복 없음
+  assert.equal(r.removed, 1);                                     // OLD가 빠짐
+  assert.equal(r.updated, 1);                                     // H1 유지
+  assert.equal(r.inserted, 1);                                    // NEW 추가
+  db.close();
+});
+
 test('dedup_log: 저장되고 재실행 시 해당 날짜분만 교체', () => {
   const db = openDb(':memory:');
   const dedupLog = [{

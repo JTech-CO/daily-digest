@@ -41,10 +41,13 @@ for (const [name, mod, zeroOk] of adapters) {
 }
 
 // 2) Spotlight 슬러그 직접 확인 (§9 — 슬러그 파손 조기 감지)
+//    일시적 네트워크 오류로 주간 헬스체크가 오탐 실패하지 않도록 재시도를 준다
+//    (구조 변경으로 슬러그가 실제로 깨졌다면 재시도해도 계속 실패한다).
+const CHECK_RETRIES = { retries: 2, retryDelayMs: 2000 };
 for (const [name, base] of [['physorg', 'https://phys.org'], ['techxplore', 'https://techxplore.com']]) {
   const url = `${base}/rss-feed/breaking/`;
   try {
-    const xml = await fetchText(`${name}-spotlight`, url);
+    const xml = await fetchText(`${name}-spotlight`, url, CHECK_RETRIES);
     const itemCount = (xml.match(/<item>/g) ?? []).length;
     record(`${name} spotlight 슬러그`, itemCount > 0, `${itemCount}개 항목 @ ${url}`);
   } catch (err) {
@@ -54,7 +57,7 @@ for (const [name, base] of [['physorg', 'https://phys.org'], ['techxplore', 'htt
 
 // 3) GeekNews 홈 파싱 셀렉터 유효성 (§9)
 try {
-  const html = await fetchText('geeknews-home', 'https://news.hada.io/');
+  const html = await fetchText('geeknews-home', 'https://news.hada.io/', CHECK_RETRIES);
   const parsed = parseHomepage(html);
   record('geeknews 홈 파싱', parsed.length > 0, `topic_row ${parsed.length}개 파싱`);
 } catch (err) {

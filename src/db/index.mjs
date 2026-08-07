@@ -78,15 +78,21 @@ export function savePicks(db, { pickDate, items, dedupLog = [] }) {
     ) VALUES ($pick_date, $kept_source, $kept_item_id, $dropped_source, $dropped_title, $method, $similarity_score)
   `);
 
-  let inserted = 0, updated = 0;
+  let inserted = 0, updated = 0, removed = 0;
   db.exec('BEGIN');
   try {
-    // 같은 날 재실행 멱등성: 이 날짜의 dedup_log를 먼저 비우고 다시 채운다
+    // 같은 날 재실행 멱등성: 이 날짜의 기존 픽·dedup_log를 먼저 비우고 다시 채운다.
+    // (지우지 않으면 재실행에서 픽이 바뀔 때 옛 행이 남아 그날 건수와 순번이 어긋난다)
+    const prevKeys = new Set(
+      db.prepare('SELECT source, source_item_id FROM daily_picks WHERE pick_date = ?').all(pickDate)
+        .map(r => `${r.source}|${r.source_item_id}`),
+    );
+    db.prepare('DELETE FROM daily_picks WHERE pick_date = ?').run(pickDate);
     db.prepare('DELETE FROM dedup_log WHERE pick_date = ?').run(pickDate);
 
     for (const [i, c] of items.entries()) {
-      const before = db.prepare('SELECT 1 FROM daily_picks WHERE source = ? AND source_item_id = ?')
-        .get(c.source, c.sourceItemId);
+      const before = prevKeys.has(`${c.source}|${c.sourceItemId}`);
+      if (before) prevKeys.delete(`${c.source}|${c.sourceItemId}`);
       upsert.run({
         pick_date: pickDate,
         source: c.source,
@@ -107,6 +113,7 @@ export function savePicks(db, { pickDate, items, dedupLog = [] }) {
       });
       if (before) updated++; else inserted++;
     }
+    removed = prevKeys.size; // 재실행에서 더 이상 선택되지 않아 빠진 항목
 
     for (const l of dedupLog) {
       insertDedup.run({
@@ -125,7 +132,20 @@ export function savePicks(db, { pickDate, items, dedupLog = [] }) {
     throw err;
   }
 
-  return { inserted, updated, dedupRows: dedupLog.length };
+  return { inserted, updated, removed, dedupRows: dedupLog.length };
+}
+
+/**
+ * 이미 게시된 항목 키(`source|source_item_id`) 집합을 반환한다.
+ * exceptDate를 지정하면 그 날짜의 픽은 제외 — 같은 날 재실행(workflow_dispatch)이
+ * 자기 자신 때문에 후보를 잃지 않도록(멱등) 하기 위함.
+ * @returns {Set<string>}
+ */
+export function getPickedItemKeys(db, { exceptDate = null } = {}) {
+  const rows = exceptDate
+    ? db.prepare('SELECT source, source_item_id FROM daily_picks WHERE pick_date <> ?').all(exceptDate)
+    : db.prepare('SELECT source, source_item_id FROM daily_picks').all();
+  return new Set(rows.map(r => `${r.source}|${r.source_item_id}`));
 }
 
 /** 저장된 날짜 목록(최신순)과 각 날짜 건수 — 아카이브 뷰(§7)용 */

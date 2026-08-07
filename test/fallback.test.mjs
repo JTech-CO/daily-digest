@@ -166,6 +166,7 @@ test('arxiv: HF Daily Papers 실패해도 최신순 후보는 반환', async () 
 });
 
 test('arxiv: HF 업보트가 있으면 조인해 인기픽으로', async () => {
+  // title 없는 비정상 HF 항목이어도 업보트 조인은 동작해야 한다
   const hf = JSON.stringify([{ paper: { id: '2607.02514', upvotes: 65 } }]);
   const impl = mockFetch([
     ['export.arxiv.org', ok(ARXIV_ATOM)],
@@ -174,4 +175,40 @@ test('arxiv: HF 업보트가 있으면 조인해 인기픽으로', async () => {
   const out = await arxiv.fetchCandidates({ windowHours: HUGE_WINDOW, fetchImpl: impl });
   assert.equal(out[0].isPopularPick, true);
   assert.equal(out[0].popularitySignal, 65);       // 버전 무시 조인(2607.02514v1 ↔ 2607.02514)
+});
+
+test('arxiv: HF Daily Papers 항목이 후보로 승격된다(24h 창 밖이어도)', async () => {
+  // 운영 실측: arXiv API 신선분은 주 3일만 24h 창에 들어온다. HF 등재분은 창과 무관하게 후보.
+  const hf = JSON.stringify([{
+    paper: {
+      id: '2608.09999', title: 'HF Curated Paper', upvotes: 120,
+      summary: 'Abstract from HF.', publishedAt: '2026-07-01T00:00:00.000Z', // 창 밖(오래됨)
+    },
+  }]);
+  const impl = mockFetch([
+    ['export.arxiv.org', ok(ARXIV_ATOM)],
+    ['huggingface.co', ok(hf)],
+  ]);
+  // windowHours=1 → arXiv API 후보는 전부 탈락하지만 HF 후보는 남아야 한다
+  const out = await arxiv.fetchCandidates({ windowHours: 1, fetchImpl: impl });
+  assert.equal(out.length, 1);
+  assert.equal(out[0].sourceItemId, '2608.09999');
+  assert.equal(out[0].title, 'HF Curated Paper');
+  assert.equal(out[0].url, 'https://arxiv.org/abs/2608.09999');
+  assert.equal(out[0].summary, 'Abstract from HF.');
+  assert.equal(out[0].popularitySignal, 120);
+  assert.equal(out[0].isPopularPick, true);
+});
+
+test('arxiv: HF와 API에 같은 논문이 있으면 중복 없이 1건(버전 무시)', async () => {
+  const hf = JSON.stringify([{
+    paper: { id: '2607.02514', title: 'Test Paper Title', upvotes: 7, summary: 'abs' },
+  }]);
+  const impl = mockFetch([
+    ['export.arxiv.org', ok(ARXIV_ATOM)],   // 같은 논문 v1
+    ['huggingface.co', ok(hf)],
+  ]);
+  const out = await arxiv.fetchCandidates({ windowHours: HUGE_WINDOW, fetchImpl: impl });
+  assert.equal(out.length, 1);
+  assert.equal(out[0].popularitySignal, 7);
 });

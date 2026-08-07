@@ -8,7 +8,7 @@ import { selectDaily } from './select.mjs';
 import { translateAll } from './translate.mjs';
 import { generateDetailsAll } from './detail.mjs';
 import { makeLlmPairClassifier, activeProviderInfo } from './llm.mjs';
-import { openDb, savePicks, kstDateString } from '../db/index.mjs';
+import { openDb, savePicks, kstDateString, getPickedItemKeys } from '../db/index.mjs';
 
 /**
  * @param {object} [options]
@@ -30,9 +30,20 @@ export async function runPipeline({ windowHours = 24, dbPath = 'daily-digest.db'
   const llm = activeProviderInfo();
   log(`  LLM: ${llm ? `${llm.name} (${llm.model})` : 'OFF — 키 없음, 번역/4차dedup 비활성'}`);
 
+  // 과거에 이미 실린 항목은 다시 뽑지 않는다(콘텐츠 반복 방지 + 저장 시 과거 날짜 유실 방어)
+  let excludeKeys = new Set();
+  if (dbPath) {
+    const db = openDb(dbPath);
+    try {
+      excludeKeys = getPickedItemKeys(db, { exceptDate: pickDate });
+    } finally {
+      db.close();
+    }
+  }
+
   const classifyPair = makeLlmPairClassifier();
-  const { order, deficits, unfilled, dedupLog } = await selectDaily(candidatesBySource, { classifyPair });
-  log(`  선별 ${order.length}건 (결손 ${deficits.length}, 미충족 ${unfilled}, 중복제거 ${dedupLog.length})`);
+  const { order, deficits, unfilled, dedupLog } = await selectDaily(candidatesBySource, { classifyPair, excludeKeys });
+  log(`  선별 ${order.length}건 (결손 ${deficits.length}, 미충족 ${unfilled}, 중복제거 ${dedupLog.length}, 기게시 제외 ${excludeKeys.size})`);
 
   const { items: translated, stats } = await translateAll(order);
   log(`  번역 ${stats.translated} / 정제 ${stats.refined} / 실패 ${stats.failed} (실패율 ${(stats.failureRate * 100).toFixed(1)}%)`);
@@ -46,7 +57,7 @@ export async function runPipeline({ windowHours = 24, dbPath = 'daily-digest.db'
     const db = openDb(dbPath);
     try {
       saved = savePicks(db, { pickDate, items, dedupLog });
-      log(`  저장 — 신규 ${saved.inserted} / 갱신 ${saved.updated} / dedup_log ${saved.dedupRows}`);
+      log(`  저장 — 신규 ${saved.inserted} / 유지 ${saved.updated} / 교체제거 ${saved.removed} / dedup_log ${saved.dedupRows}`);
     } finally {
       db.close();
     }
