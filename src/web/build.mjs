@@ -42,8 +42,8 @@ function buildData() {
 
 function copyStatic() {
   mkdirSync(PUBLIC_DIR, { recursive: true });
-  for (const name of readdirSync(WEB_DIR)) {
-    copyFileSync(join(WEB_DIR, name), join(PUBLIC_DIR, name));
+  for (const entry of readdirSync(WEB_DIR, { withFileTypes: true })) {
+    if (entry.isFile()) copyFileSync(join(WEB_DIR, entry.name), join(PUBLIC_DIR, entry.name));
   }
 }
 

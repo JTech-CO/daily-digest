@@ -4,36 +4,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { translateItem, translateAll } from '../src/pipeline/translate.mjs';
 
-// 모든 프로바이더 키를 격리한다 — 실행 환경에 우연히 키가 있어도 결정적으로 동작
-const ALL_KEYS = ['ANTHROPIC_API_KEY', 'OPENAI_API_KEY', 'XAI_API_KEY', 'GROK_API_KEY',
-  'GEMINI_API_KEY', 'GOOGLE_API_KEY', 'LLM_PROVIDER'];
-
-function withEnv(setKeys, fn) {
-  return async () => {
-    const saved = Object.fromEntries(ALL_KEYS.map(k => [k, process.env[k]]));
-    for (const k of ALL_KEYS) delete process.env[k];
-    Object.assign(process.env, setKeys);
-    try { await fn(); } finally {
-      for (const k of ALL_KEYS) {
-        if (saved[k] === undefined) delete process.env[k]; else process.env[k] = saved[k];
-      }
-    }
-  };
-}
-// 기본: anthropic 키만 설정(mock이 anthropic 응답 형태를 반환하므로)
-const withKey = fn => withEnv({ ANTHROPIC_API_KEY: 'sk-test' }, fn);
-
-// Anthropic Messages API 응답을 흉내내는 mock fetch
-function mockApi(payload, { status = 200 } = {}) {
-  return async () => ({
-    ok: status < 400,
-    status,
-    statusText: 'x',
-    async text() { return typeof payload === 'string' ? payload : JSON.stringify(payload); },
-    async json() { return typeof payload === 'string' ? JSON.parse(payload) : payload; },
-  });
-}
-const asContent = obj => ({ content: [{ type: 'text', text: JSON.stringify(obj) }] });
+import { withEnv, withKey, mockApi, asContent } from './helpers.mjs';
 
 const enItem = {
   source: 'hackernews', sourceItemId: '1', title: 'Optical writing of antiferromagnets',
@@ -110,4 +81,24 @@ test('translateAll 통계: 실패율 집계', withKey(async () => {
   assert.equal(stats.failed, 1);
   assert.ok(Math.abs(stats.failureRate - 1 / 3) < 1e-9);
   assert.equal(items[1].isTranslated, false); // 실패 항목
+}));
+
+test('키 없음: 정제(refined)로 세지 않고 skipped로 집계', withEnv({}, async () => {
+  // 회귀: 키가 없어 아무것도 안 했는데 geeknews를 "정제 1건"으로 보고하던 문제
+  const order = [enItem, koItem];
+  const { items, stats } = await translateAll(order, { fetchImpl: mockApi(asContent({})) });
+  assert.equal(stats.translated, 0);
+  assert.equal(stats.refined, 0);      // 정제한 적 없음
+  assert.equal(stats.skipped, 2);      // 둘 다 건너뜀
+  assert.equal(stats.failed, 0);
+  assert.ok(items.every(i => i.translateSkipped));
+}));
+
+test('키 있음: geeknews는 refined로 집계(skipped 아님)', withKey(async () => {
+  const { stats } = await translateAll([enItem, koItem], {
+    fetchImpl: mockApi(asContent({ title_ko: '제목', summary_ko: '요약' })),
+  });
+  assert.equal(stats.translated, 1);   // 영어 소스
+  assert.equal(stats.refined, 1);      // geeknews
+  assert.equal(stats.skipped, 0);
 }));

@@ -15,25 +15,32 @@ export const ADAPTERS = [hackernews, geeknews, arxiv, physorg, techxplore];
 /**
  * @param {object} [options]
  * @param {number} [options.windowHours=24]
+ * @param {typeof ADAPTERS} [options.adapters] 테스트용 주입(기본값은 실제 5개 어댑터)
  * @returns {Promise<{ candidatesBySource: Record<string, object[]>, failures: string[] }>}
  */
-export async function collectAll({ windowHours = 24 } = {}) {
+export async function collectAll({ windowHours = 24, adapters = ADAPTERS } = {}) {
   const settled = await Promise.allSettled(
-    ADAPTERS.map(a => a.fetchCandidates({ windowHours })),
+    adapters.map(a => a.fetchCandidates({ windowHours })),
   );
 
   const candidatesBySource = {};
   const failures = [];
 
   for (const [i, result] of settled.entries()) {
-    const source = ADAPTERS[i].SOURCE;
+    const source = adapters[i].SOURCE;
     if (result.status === 'rejected') {
       failures.push(`${source}: ${result.reason.message}`);
       candidatesBySource[source] = [];
       continue;
     }
-    assertCandidates(result.value);
-    candidatesBySource[source] = result.value;
+    // 스키마 위반도 해당 소스만 실패로 격리한다(§1) — 한 소스 때문에 전체 배치가 죽지 않도록
+    try {
+      assertCandidates(result.value);
+      candidatesBySource[source] = result.value;
+    } catch (err) {
+      failures.push(`${source}: ${err.message}`);
+      candidatesBySource[source] = [];
+    }
   }
 
   return { candidatesBySource, failures };

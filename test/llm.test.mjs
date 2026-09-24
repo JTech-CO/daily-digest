@@ -2,23 +2,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { askLlmJSON, hasLlm, activeProviderInfo } from '../src/pipeline/llm.mjs';
-
-const ALL_KEYS = ['ANTHROPIC_API_KEY', 'OPENAI_API_KEY', 'XAI_API_KEY', 'GROK_API_KEY',
-  'GEMINI_API_KEY', 'GOOGLE_API_KEY', 'LLM_PROVIDER', 'ANTHROPIC_MODEL', 'OPENAI_MODEL',
-  'XAI_MODEL', 'GEMINI_MODEL'];
-
-function withEnv(setKeys, fn) {
-  return async () => {
-    const saved = Object.fromEntries(ALL_KEYS.map(k => [k, process.env[k]]));
-    for (const k of ALL_KEYS) delete process.env[k];
-    Object.assign(process.env, setKeys);
-    try { await fn(); } finally {
-      for (const k of ALL_KEYS) {
-        if (saved[k] === undefined) delete process.env[k]; else process.env[k] = saved[k];
-      }
-    }
-  };
-}
+import { withEnv } from './helpers.mjs';
 
 // 요청을 가로채 URL/헤더/바디를 기록하고, 고정 응답을 돌려주는 mock
 function captureFetch(responsePayload) {

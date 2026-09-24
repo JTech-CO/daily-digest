@@ -4,24 +4,7 @@ import assert from 'node:assert/strict';
 import { generateDetail, generateDetailsAll } from '../src/pipeline/detail.mjs';
 import { extractArticleText } from '../src/pipeline/extract.mjs';
 
-const ALL_KEYS = ['ANTHROPIC_API_KEY', 'OPENAI_API_KEY', 'XAI_API_KEY', 'GROK_API_KEY',
-  'GEMINI_API_KEY', 'GOOGLE_API_KEY', 'LLM_PROVIDER'];
-function withEnv(setKeys, fn) {
-  return async () => {
-    const saved = Object.fromEntries(ALL_KEYS.map(k => [k, process.env[k]]));
-    for (const k of ALL_KEYS) delete process.env[k];
-    Object.assign(process.env, setKeys);
-    try { await fn(); } finally {
-      for (const k of ALL_KEYS) { if (saved[k] === undefined) delete process.env[k]; else process.env[k] = saved[k]; }
-    }
-  };
-}
-const withKey = fn => withEnv({ ANTHROPIC_API_KEY: 'sk-test' }, fn);
-
-// Anthropic 응답 형태로 감싼 mock
-const asContent = obj => ({ content: [{ type: 'text', text: JSON.stringify(obj) }] });
-const llmRes = obj => ({ ok: true, status: 200, statusText: 'OK', async json() { return asContent(obj); }, async text() { return JSON.stringify(asContent(obj)); } });
-const htmlRes = html => ({ ok: true, status: 200, statusText: 'OK', headers: new Headers(), async text() { return html; } });
+import { withEnv, withKey, llmRes, htmlRes } from './helpers.mjs';
 
 // URL로 라우팅: LLM 엔드포인트면 순차 응답, 기사 URL이면 HTML
 function routedFetch({ articleHtml, llmResponses }) {

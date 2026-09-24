@@ -12,6 +12,14 @@ const BADGE = {
   physorg: 'PHYS.ORG', techxplore: 'TECHXPLORE',
 };
 
+/** id로 요소 찾기 — 이 파일에서 가장 많이 반복되던 표현 */
+const $ = id => document.getElementById(id);
+
+/** 소스의 표시 이름(모르는 소스는 원문 그대로) */
+const badgeOf = source => BADGE[source] ?? source;
+/** 소스 카테고리 색 CSS 변수 참조 */
+const catVar = source => `var(--source-${source})`;
+
 const el = (tag, cls, text) => {
   const n = document.createElement(tag);
   if (cls) n.className = cls;
@@ -56,7 +64,7 @@ function signalLabel(pick) {
 // ── 카드 렌더 (§4.1, §9) ───────────────────────────────────────
 function renderPick(pick, index) {
   const article = el('article', 'pick');
-  article.style.setProperty('--cat', `var(--source-${pick.source})`);
+  article.style.setProperty('--cat', catVar(pick.source));
   // 제목/패널 클릭 → 상세 뷰(원문 링크는 아래 pick__link만)
   article.tabIndex = 0;
   article.setAttribute('role', 'button');
@@ -69,8 +77,9 @@ function renderPick(pick, index) {
 
   const head = el('div', 'pick__head');
   head.append(
-    el('span', 'pick__rank', String(index + 1).padStart(2, '0')),
-    el('span', 'pick__badge', BADGE[pick.source] ?? pick.source),
+    // 검색 결과에서도 "그날의 순위"를 보여준다(검색 결과 내 순서가 아니라)
+    el('span', 'pick__rank', String(pick.rank ?? index + 1).padStart(2, '0')),
+    el('span', 'pick__badge', badgeOf(pick.source)),
     el('span', 'pick__signal', signalLabel(pick)),
   );
 
@@ -119,6 +128,19 @@ function currentDate() {
 
 const isFiltering = () => state.query.trim().length > 0 || state.sources.size > 0;
 
+/** 검색·소스 필터를 해제하고 UI도 초기 상태로 되돌린다(날짜 모드 복귀용) */
+function clearFilters() {
+  if (!isFiltering()) return;
+  state.query = '';
+  state.sources.clear();
+  const input = $('search');
+  if (input) input.value = '';
+  for (const chip of document.querySelectorAll('.chip--on')) {
+    chip.classList.remove('chip--on');
+    chip.setAttribute('aria-pressed', 'false');
+  }
+}
+
 /** 검색 대상 텍스트(번역·원문 모두) */
 function haystack(p) {
   return [p.title_ko, p.title_original, p.summary_ko, p.summary_original, p.detail_summary]
@@ -144,8 +166,8 @@ function filteredPicks() {
 }
 
 function render() {
-  const feed = document.getElementById('feed');
-  const dateLabel = document.getElementById('currentDate');
+  const feed = $('feed');
+  const dateLabel = $('currentDate');
   feed.replaceChildren();
 
   if (isFiltering()) return renderResults(feed, dateLabel);
@@ -167,16 +189,16 @@ function render() {
   }
 
   // 날짜 네비 상태 — dates는 최신순 정렬
-  document.getElementById('prevDate').disabled = state.dateIndex >= state.data.dates.length - 1;
-  document.getElementById('nextDate').disabled = state.dateIndex <= 0;
+  $('prevDate').disabled = state.dateIndex >= state.data.dates.length - 1;
+  $('nextDate').disabled = state.dateIndex <= 0;
 }
 
 function renderResults(feed, dateLabel) {
   const results = filteredPicks();
   dateLabel.textContent = `검색 ${results.length}건`;
   dateLabel.removeAttribute('datetime');
-  document.getElementById('prevDate').disabled = true;
-  document.getElementById('nextDate').disabled = true;
+  $('prevDate').disabled = true;
+  $('nextDate').disabled = true;
 
   if (results.length === 0) {
     feed.append(el('p', 'empty', '조건에 맞는 항목이 없습니다.'));
@@ -191,22 +213,48 @@ function renderResults(feed, dateLabel) {
 }
 
 function renderArchive() {
-  const section = document.getElementById('archive');
-  const list = document.getElementById('archiveList');
+  const section = $('archive');
+  const list = $('archiveList');
   if (state.data.dates.length <= 1) { section.hidden = true; return; }
   section.hidden = false;
   list.replaceChildren();
   state.data.dates.forEach((d, i) => {
     const li = el('li', 'archive__item');
     const btn = el('button', 'archive__date', d.date);
-    btn.addEventListener('click', () => { state.dateIndex = i; render(); window.scrollTo(0, 0); });
+    btn.addEventListener('click', () => {
+      clearFilters();            // 필터가 걸려 있으면 날짜를 바꿔도 화면에 반영되지 않는다
+      state.dateIndex = i;
+      render();
+      window.scrollTo(0, 0);
+    });
     li.append(btn, el('span', 'archive__count', `${d.count}건`));
     list.append(li);
   });
 }
 
+// ── 모달 공통 ──────────────────────────────────────────────────
+// 포커스 저장·복원과 배경 스크롤 잠금은 모든 모달이 동일하게 지켜야 한다.
+function makeModal(modalId, { fill, focusId }) {
+  let lastFocused = null;
+  return {
+    open(...args) {
+      lastFocused = document.activeElement;
+      fill?.(...args);
+      $(modalId).hidden = false;
+      document.body.style.overflow = 'hidden';
+      $(focusId)?.focus();
+    },
+    close() {
+      const modal = $(modalId);
+      if (modal.hidden) return;
+      modal.hidden = true;
+      document.body.style.overflow = '';
+      lastFocused?.focus?.();
+    },
+  };
+}
+
 // ── 상세 뷰(모달) ──────────────────────────────────────────────
-let lastFocused = null;
 
 // LLM 출력 마크다운을 안전하게(textContent만) DOM으로 렌더 — 제목/불릿/문단만 지원
 function renderMarkdown(md) {
@@ -242,8 +290,13 @@ function section(label, text, { markdown = false, copyable = false } = {}) {
     header.append(btn);
   }
   sec.append(header);
-  sec.append(markdown ? (() => { const d = el('div', 'detail__md'); d.append(renderMarkdown(text)); return d; })()
-    : el('p', 'detail__text', text));
+  if (markdown) {
+    const md = el('div', 'detail__md');
+    md.append(renderMarkdown(text));
+    sec.append(md);
+  } else {
+    sec.append(el('p', 'detail__text', text));
+  }
   return sec;
 }
 
@@ -260,7 +313,7 @@ function effectiveDetail(pick) {
 }
 
 function renderDetailBody(pick) {
-  const body = document.getElementById('detailBody');
+  const body = $('detailBody');
   const d = effectiveDetail(pick);
 
   // 실제 생성된 구성만 표시한다(빈 섹션·초록 오표시 방지).
@@ -302,7 +355,7 @@ function generateControl(pick, incomplete) {
         const detail = await generateDetail(pick);   // 캐시 무시하고 현재 설정으로 새로 생성
         cacheDetail(pick, detail);
         renderDetailBody(pick);                       // 재렌더(생성 결과 반영)
-        document.getElementById('detailClose').focus(); // 포커스를 모달 내부로 유지
+        $('detailClose').focus(); // 포커스를 모달 내부로 유지
       } catch (err) {
         btn.disabled = false;
         btn.textContent = label;
@@ -322,58 +375,47 @@ function generateControl(pick, incomplete) {
   return wrap;
 }
 
-function openDetail(pick) {
-  lastFocused = document.activeElement;
-  const modal = document.getElementById('detail');
-  const panel = modal.querySelector('.detail__panel');
-  panel.style.setProperty('--cat', `var(--source-${pick.source})`);
+function fillDetail(pick) {
+  const panel = document.querySelector('#detail .detail__panel');
+  panel.style.setProperty('--cat', catVar(pick.source));
 
-  document.getElementById('detailBadge').textContent = BADGE[pick.source] ?? pick.source;
-  document.getElementById('detailBadge').style.color = `var(--source-${pick.source})`;
-  document.getElementById('detailSignal').textContent = signalLabel(pick);
-  document.getElementById('detailTitle').textContent = pick.title_ko || pick.title_original;
-  const orig = document.getElementById('detailOrig');
+  const badge = $('detailBadge');
+  badge.textContent = badgeOf(pick.source);
+  badge.style.color = catVar(pick.source);
+  $('detailSignal').textContent = signalLabel(pick);
+  $('detailTitle').textContent = pick.title_ko || pick.title_original;
+  const orig = $('detailOrig');
   // 번역된 항목만 원제 병기(GeekNews 등 원문=한국어면 생략)
   orig.textContent = pick.is_translated && pick.title_original ? pick.title_original : '';
   orig.hidden = !orig.textContent;
-  const srcLink = document.getElementById('detailSource');
+  const srcLink = $('detailSource');
   const srcHref = safeHttpUrl(pick.url);
   srcLink.href = srcHref || '#';
   srcLink.hidden = !srcHref;
 
   renderDetailBody(pick);
-
-  modal.hidden = false;
-  document.body.style.overflow = 'hidden';
-  document.getElementById('detailClose').focus();
 }
 
-function closeDetail() {
-  const modal = document.getElementById('detail');
-  if (modal.hidden) return;
-  modal.hidden = true;
-  document.body.style.overflow = '';
-  if (lastFocused && lastFocused.focus) lastFocused.focus();
-}
+const detailModal = makeModal('detail', { fill: fillDetail, focusId: 'detailClose' });
+const openDetail = pick => detailModal.open(pick);
+const closeDetail = () => detailModal.close();
 
 function setupDetail() {
-  const modal = document.getElementById('detail');
-  document.getElementById('detailClose').addEventListener('click', closeDetail);
+  const modal = $('detail');
+  $('detailClose').addEventListener('click', closeDetail);
   modal.querySelectorAll('[data-close]').forEach(n => n.addEventListener('click', closeDetail));
   document.addEventListener('keydown', (e) => { if (e.key === 'Escape') { closeDetail(); closeSettings(); } });
 }
 
 // ── LLM 설정 모달 ──────────────────────────────────────────────
-let settingsLastFocused = null;
-
 // ⚙ 버튼: 키가 설정돼 있으면 액센트 색으로 표시
 function syncSettingsIndicator() {
-  document.getElementById('settingsBtn').dataset.configured = hasConfig() ? 'true' : 'false';
+  $('settingsBtn').dataset.configured = hasConfig() ? 'true' : 'false';
 }
 
 // 모델 <select>를 해당 프로바이더의 모델 목록으로 채우고 selected를 지정
 function populateModelSelect(provider, selected) {
-  const sel = document.getElementById('settingsModel');
+  const sel = $('settingsModel');
   const models = modelsFor(provider);
   const chosen = models.includes(selected) ? selected : defaultModelFor(provider);
   sel.replaceChildren(...models.map(m => {
@@ -383,40 +425,31 @@ function populateModelSelect(provider, selected) {
   }));
 }
 
-function openSettings() {
-  settingsLastFocused = document.activeElement;
+function fillSettings() {
   const cfg = getConfig();
-  const providerSel = document.getElementById('settingsProvider');
-  const keyInput = document.getElementById('settingsKey');
+  const providerSel = $('settingsProvider');
+  const keyInput = $('settingsKey');
 
   providerSel.value = cfg?.provider || 'anthropic';
   populateModelSelect(providerSel.value, cfg?.model);
   keyInput.value = cfg?.apiKey || '';
-  document.getElementById('settingsStatus').textContent = '';
-
-  document.getElementById('settings').hidden = false;
-  document.body.style.overflow = 'hidden';
-  providerSel.focus();
+  $('settingsStatus').textContent = '';
 }
 
-function closeSettings() {
-  const modal = document.getElementById('settings');
-  if (modal.hidden) return;
-  modal.hidden = true;
-  document.body.style.overflow = '';
-  if (settingsLastFocused && settingsLastFocused.focus) settingsLastFocused.focus();
-}
+const settingsModal = makeModal('settings', { fill: fillSettings, focusId: 'settingsProvider' });
+const openSettings = () => settingsModal.open();
+const closeSettings = () => settingsModal.close();
 
 function setupSettings() {
-  const providerSel = document.getElementById('settingsProvider');
-  const modelInput = document.getElementById('settingsModel');
-  const keyInput = document.getElementById('settingsKey');
-  const status = document.getElementById('settingsStatus');
+  const providerSel = $('settingsProvider');
+  const modelInput = $('settingsModel');
+  const keyInput = $('settingsKey');
+  const status = $('settingsStatus');
 
   syncSettingsIndicator();
 
-  document.getElementById('settingsBtn').addEventListener('click', openSettings);
-  document.getElementById('settingsClose').addEventListener('click', closeSettings);
+  $('settingsBtn').addEventListener('click', openSettings);
+  $('settingsClose').addEventListener('click', closeSettings);
   document.querySelectorAll('[data-close-settings]').forEach(n => n.addEventListener('click', closeSettings));
 
   // 프로바이더 변경 시 모델 목록을 그 프로바이더 것으로 교체(기본 모델 선택)
@@ -426,7 +459,7 @@ function setupSettings() {
     status.textContent = risk ? '⚠ 이 프로바이더는 브라우저 직접 호출이 CORS로 막힐 수 있습니다.' : '';
   });
 
-  document.getElementById('settingsSave').addEventListener('click', () => {
+  $('settingsSave').addEventListener('click', () => {
     const apiKey = keyInput.value.trim();
     if (!apiKey) { status.textContent = 'API 키를 입력하세요.'; return; }
     saveConfig({ provider: providerSel.value, model: modelInput.value, apiKey });
@@ -435,7 +468,7 @@ function setupSettings() {
     setTimeout(closeSettings, 700);
   });
 
-  document.getElementById('settingsClear').addEventListener('click', () => {
+  $('settingsClear').addEventListener('click', () => {
     clearConfig();
     keyInput.value = '';
     syncSettingsIndicator();
@@ -445,7 +478,7 @@ function setupSettings() {
 
 // ── 테마 토글 (§6) — 수동 선택이 항상 우선, 시스템 설정 미참조 ──
 function setupTheme() {
-  const btn = document.getElementById('themeToggle');
+  const btn = $('themeToggle');
   const sync = () => btn.setAttribute('aria-checked', document.documentElement.dataset.theme === 'light');
   sync();
   btn.addEventListener('click', () => {
@@ -458,8 +491,8 @@ function setupTheme() {
 
 // ── 검색 · 소스 필터 ───────────────────────────────────────────
 function setupSearch() {
-  const input = document.getElementById('search');
-  const chips = document.getElementById('sourceChips');
+  const input = $('search');
+  const chips = $('sourceChips');
 
   input.addEventListener('input', () => {
     state.query = input.value;
@@ -484,8 +517,8 @@ function setupSearch() {
   chips.replaceChildren();
   for (const source of ['hackernews', 'geeknews', 'arxiv', 'physorg', 'techxplore']) {
     if (!present.has(source)) continue;
-    const chip = el('button', 'chip', BADGE[source] ?? source);
-    chip.style.setProperty('--cat', `var(--source-${source})`);
+    const chip = el('button', 'chip', badgeOf(source));
+    chip.style.setProperty('--cat', catVar(source));
     chip.setAttribute('aria-pressed', 'false');
     chip.addEventListener('click', () => {
       if (state.sources.has(source)) state.sources.delete(source);
@@ -500,10 +533,10 @@ function setupSearch() {
 }
 
 function setupNav() {
-  document.getElementById('prevDate').addEventListener('click', () => {
+  $('prevDate').addEventListener('click', () => {
     if (state.dateIndex < state.data.dates.length - 1) { state.dateIndex++; render(); }
   });
-  document.getElementById('nextDate').addEventListener('click', () => {
+  $('nextDate').addEventListener('click', () => {
     if (state.dateIndex > 0) { state.dateIndex--; render(); }
   });
 }
@@ -519,14 +552,14 @@ async function main() {
     state.data = await res.json();
   } catch (err) {
     state.data = { dates: [], picks: {}, generatedAt: null };
-    document.getElementById('foot').textContent = `데이터 로드 실패: ${err.message}`;
+    $('foot').textContent = `데이터 로드 실패: ${err.message}`;
   }
   setupSearch();
   render();
   renderArchive();
   const gen = state.data.generatedAt;
   if (gen) {
-    document.getElementById('foot').textContent =
+    $('foot').textContent =
       `${state.data.dates.length}일치 · 마지막 갱신 ${new Date(gen).toLocaleString('ko-KR')}`;
   }
 }

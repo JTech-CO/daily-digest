@@ -10,7 +10,9 @@
 
 import { findDuplicate } from './dedup.mjs';
 
-export const SOURCES = ['hackernews', 'geeknews', 'arxiv', 'physorg', 'techxplore'];
+// 소스 목록의 단일 출처는 스키마를 소유한 normalize.mjs다. 기존 임포트 경로 호환을 위해 재수출한다.
+import { SOURCES } from './normalize.mjs';
+export { SOURCES };
 
 /**
  * 하루치 선별을 수행한다.

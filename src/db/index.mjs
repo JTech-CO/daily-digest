@@ -1,8 +1,10 @@
 // SQLite 저장 계층 (기술 백서 §5) — node:sqlite 내장 드라이버
 //
 // 단일 사용자·일 5~8건 규모라 단일 파일 SQLite로 충분(§5).
-// UNIQUE(source, source_item_id)로 같은 항목의 재적재를 막고,
-// 같은 날 재실행(workflow_dispatch)은 ON CONFLICT UPDATE로 멱등 처리한다.
+// UNIQUE(source, source_item_id)로 같은 항목의 재적재를 막는다.
+// 같은 날 재실행(workflow_dispatch)의 멱등성은 savePicks가 그날 행을 지우고 다시 넣어 보장한다
+// (ON CONFLICT는 크로스-날짜 충돌에만 걸리며, 그 경우 행이 다른 날짜로 이동한다 —
+//  선별 단계의 excludeKeys가 애초에 그런 재선택을 막는다).
 
 import { DatabaseSync } from 'node:sqlite';
 import { readFileSync } from 'node:fs';
@@ -46,7 +48,7 @@ function migrate(db) {
  * @param {string} payload.pickDate           'YYYY-MM-DD'(KST)
  * @param {object[]} payload.items            translateAll 결과(순서 = rank)
  * @param {object[]} payload.dedupLog         selectDaily 결과 dedupLog
- * @returns {{ inserted: number, updated: number, dedupRows: number }}
+ * @returns {{ inserted: number, updated: number, removed: number, dedupRows: number }}
  */
 export function savePicks(db, { pickDate, items, dedupLog = [] }) {
   const upsert = db.prepare(`

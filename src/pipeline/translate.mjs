@@ -43,7 +43,7 @@ export async function translateItem(item, { fetchImpl = fetch, forceRefine } = {
 
   // 키가 없으면 원문 유지(§0/§4.2 fallback)
   if (!hasLlm()) {
-    return { ...item, titleKo: item.title, summaryKo: item.summary, isTranslated: false };
+    return { ...item, titleKo: item.title, summaryKo: item.summary, isTranslated: false, translateSkipped: true };
   }
 
   const user = `제목: ${item.title}\n요약: ${item.summary ?? '(없음)'}`;
@@ -72,7 +72,7 @@ export async function translateItem(item, { fetchImpl = fetch, forceRefine } = {
  * 선별 목록 전체를 번역한다. JSON 파싱 실패율을 함께 집계(§10 M3 DoD).
  * @param {object[]} order
  * @param {object} [options]
- * @returns {Promise<{ items: object[], stats: { total, translated, refined, failed, failureRate } }>}
+ * @returns {Promise<{ items: object[], stats: { total, translated, refined, skipped, failed, failureRate } }>}
  */
 export async function translateAll(order, options = {}) {
   const items = [];
@@ -81,13 +81,18 @@ export async function translateAll(order, options = {}) {
   }
   const failed = items.filter(i => i.translateError).length;
   const translated = items.filter(i => i.isTranslated).length;
-  const refined = items.filter(i => !i.isTranslated && !i.translateError && i.source === 'geeknews').length;
+  // LLM이 실제로 돌았을 때만 "정제"로 센다 — 키가 없어 건너뛴 건은 skipped
+  const skipped = items.filter(i => i.translateSkipped).length;
+  const refined = items.filter(
+    i => !i.isTranslated && !i.translateError && !i.translateSkipped && i.source === 'geeknews',
+  ).length;
   return {
     items,
     stats: {
       total: items.length,
       translated,
       refined,
+      skipped,
       failed,
       failureRate: items.length ? failed / items.length : 0,
     },
