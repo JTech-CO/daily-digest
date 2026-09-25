@@ -178,6 +178,23 @@ export function updateItemContent(db, id, {
 }
 
 /**
+ * 아무것도 생성되지 않은 채 처리 완료로 표시된 행의 backfilled_at을 지운다.
+ *
+ * 백필은 LLM이 실패해도 throw하지 않고 원문 폴백하는데, 그 경우에도 backfilled_at이
+ * 찍혀 다음 실행에서 영영 건너뛴다. 응답 잘림·rate limit 같은 일시적 실패까지
+ * 영구 포기가 되므로, 결과가 빈 행만 골라 다시 대상으로 돌린다.
+ * @returns {number} 되돌린 행 수
+ */
+export function resetEmptyBackfills(db) {
+  const { changes } = db.prepare(`
+    UPDATE daily_picks SET backfilled_at = NULL
+    WHERE backfilled_at IS NOT NULL
+      AND detail_translation IS NULL AND detail_summary IS NULL AND detail_blog IS NULL
+  `).run();
+  return Number(changes);
+}
+
+/**
  * 이미 게시된 항목 키(`source|source_item_id`) 집합을 반환한다.
  * exceptDate를 지정하면 그 날짜의 픽은 제외: 같은 날 재실행(workflow_dispatch)이
  * 자기 자신 때문에 후보를 잃지 않도록(멱등) 하기 위함.

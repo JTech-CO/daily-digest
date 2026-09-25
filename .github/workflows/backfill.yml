@@ -17,6 +17,10 @@ on:
         description: '대상만 출력하고 쓰지 않음'
         type: boolean
         default: false
+      retry_empty:
+        description: '이전에 아무것도 생성되지 않은 행을 다시 대상으로'
+        type: boolean
+        default: false
 
 permissions:
   contents: write          # 갱신된 DB를 커밋
@@ -50,12 +54,12 @@ jobs:
           # 입력은 셸에 직접 끼워넣지 않고 환경변수로 넘긴다
           LIMIT: ${{ inputs.limit }}
           DRY: ${{ inputs.dry }}
+          RETRY: ${{ inputs.retry_empty }}
         run: |
-          if [ "$DRY" = "true" ]; then
-            npm run backfill -- --limit="$LIMIT" --dry
-          else
-            npm run backfill -- --limit="$LIMIT"
-          fi
+          args="--limit=$LIMIT"
+          [ "$DRY" = "true" ] && args="$args --dry"
+          [ "$RETRY" = "true" ] && args="$args --retry-empty"
+          npm run backfill -- $args
 
       - name: Commit database
         if: ${{ !inputs.dry }}

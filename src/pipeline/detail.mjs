@@ -90,7 +90,7 @@ async function generateFromFull(item, fullText, { fetchImpl }) {
   const user = `제목: ${item.title}\n본문:\n${fullText}`;
   try {
     const t = await askLlmJSON({ fetchImpl, maxTokens: 8000, system: SYS_TRANSLATE_FULL, user });
-    const sb = await askLlmJSON({ fetchImpl, maxTokens: 3000, system: SYS_SUMMARY_BLOG_FULL, user });
+    const sb = await askLlmJSON({ fetchImpl, maxTokens: 6000, system: SYS_SUMMARY_BLOG_FULL, user });
     return { translation: str(t.translation), summary: str(sb.summary), blog: str(sb.blog), usedFullText: true };
   } catch (err) {
     return nulls({ usedFullText: true, detailError: err.message });
@@ -101,7 +101,8 @@ async function generateFromFull(item, fullText, { fetchImpl }) {
 async function generateFromShort(item, system, { fetchImpl, usedFullText }) {
   const user = `출처: ${item.source}\n제목: ${item.title}\n요약: ${item.summary ?? '(요약 없음)'}`;
   try {
-    const out = await askLlmJSON({ fetchImpl, maxTokens: 2000, system, user });
+    // 번역본+요약+블로그 초안을 한 번에 받으므로 상한이 크다(2000에서 상시 잘렸다)
+    const out = await askLlmJSON({ fetchImpl, maxTokens: 6000, system, user });
     return { translation: str(out.translation), summary: str(out.summary), blog: str(out.blog), usedFullText };
   } catch (err) {
     return nulls({ usedFullText, detailError: err.message });

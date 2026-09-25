@@ -1,7 +1,7 @@
 // 과거 항목 백필 검증
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { openDb, savePicks, getPicksByDate, getBackfillTargets, updateItemContent } from '../src/db/index.mjs';
+import { openDb, savePicks, getPicksByDate, getBackfillTargets, updateItemContent, resetEmptyBackfills } from '../src/db/index.mjs';
 
 const item = (over = {}) => ({
   source: 'hackernews', sourceItemId: 'h1', title: 'English Title', titleKo: 'English Title',
@@ -77,4 +77,41 @@ test('결과가 비어도 backfilled_at이 찍혀 재시도하지 않는다', ()
   updateItemContent(db, t.id, { titleKo: null, isTranslated: false, detailSummary: null });
   assert.ok(!getBackfillTargets(db, { limit: 10 }).some(r => r.id === t.id));
   db.close();
+});
+
+// ── 빈 결과로 끝난 백필 되돌리기 ──────────────────────
+
+function seeded() {
+  const db = openDb(':memory:');
+  savePicks(db, { pickDate: '2026-08-01', items: [
+    item({ sourceItemId: 'ok' }),
+    item({ sourceItemId: 'empty' }),
+  ] });
+  const rows = getBackfillTargets(db, { limit: 10 });
+  const byKey = Object.fromEntries(rows.map(r => [r.source_item_id, r.id]));
+  // 한 행은 생성 성공, 한 행은 LLM이 실패해 전부 null — 둘 다 backfilled_at은 찍힌다
+  updateItemContent(db, byKey.ok, { titleKo: '번역됨', isTranslated: true, detailSummary: '요약' });
+  updateItemContent(db, byKey.empty, { isTranslated: false });
+  return db;
+}
+
+test('백필: 실패해도 backfilled_at이 찍혀 다음 실행에서 건너뛰다', () => {
+  const db = seeded();
+  assert.equal(getBackfillTargets(db, { limit: 10 }).length, 0);
+});
+
+test('백필: resetEmptyBackfills는 빈 행만 대상으로 되돌린다', () => {
+  // 회귀: 응답 잘림·rate limit 같은 일시 실패가 영구 포기가 되던 문제
+  const db = seeded();
+  assert.equal(resetEmptyBackfills(db), 1);
+  const again = getBackfillTargets(db, { limit: 10 });
+  assert.equal(again.length, 1);
+  assert.equal(again[0].source_item_id, 'empty');   // 성공한 행은 그대로
+});
+
+test('백필: 되돌릴 것이 없으면 0을 반환(멱등)', () => {
+  const db = seeded();
+  resetEmptyBackfills(db);
+  updateItemContent(db, getBackfillTargets(db, { limit: 10 })[0].id, { detailSummary: '이번엔 성공' });
+  assert.equal(resetEmptyBackfills(db), 0);
 });

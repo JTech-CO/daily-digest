@@ -25,6 +25,7 @@ const PROVIDERS = {
       };
     },
     extract: data => (data.content ?? []).filter(b => b.type === 'text').map(b => b.text).join(''),
+    truncated: data => data.stop_reason === 'max_tokens',
   },
 
   openai: {
@@ -45,6 +46,7 @@ const PROVIDERS = {
       };
     },
     extract: data => data.choices?.[0]?.message?.content ?? '',
+    truncated: data => data.choices?.[0]?.finish_reason === 'length',
   },
 
   grok: {
@@ -66,6 +68,7 @@ const PROVIDERS = {
       };
     },
     extract: data => data.choices?.[0]?.message?.content ?? '',
+    truncated: data => data.choices?.[0]?.finish_reason === 'length',
   },
 
   gemini: {
@@ -85,6 +88,7 @@ const PROVIDERS = {
       };
     },
     extract: data => (data.candidates?.[0]?.content?.parts ?? []).map(p => p.text ?? '').join(''),
+    truncated: data => data.candidates?.[0]?.finishReason === 'MAX_TOKENS',
   },
 };
 
@@ -141,6 +145,11 @@ export async function askLlmJSON({ system, user, maxTokens = 600, fetchImpl = fe
   }
 
   const data = await res.json();
+  // 출력이 maxTokens에서 끊기면 JSON이 미완성이라 파싱이 실패한다. 그걸 "파싱 실패"로
+  // 뭉뚱그리면 상한이 모자란 건지 모델이 헛소리를 한 건지 구분할 수 없어, 따로 보고한다.
+  if (p.truncated?.(data)) {
+    throw new Error(`[llm:${p.name}] 응답이 maxTokens(${maxTokens})에서 잘렸습니다. 상한을 올리세요.`);
+  }
   const text = p.extract(data);
   const jsonText = text.match(/```(?:json)?\s*([\s\S]*?)```/)?.[1] ?? text;
   try {

@@ -2,7 +2,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { askLlmJSON, hasLlm, activeProviderInfo } from '../src/pipeline/llm.mjs';
-import { withEnv } from './helpers.mjs';
+import { withEnv, withKey } from './helpers.mjs';
 
 // 요청을 가로채 URL/헤더/바디를 기록하고, 고정 응답을 돌려주는 mock
 function captureFetch(responsePayload) {
@@ -123,4 +123,34 @@ test('gemini 코드펜스 JSON도 파싱', withEnv({ GEMINI_API_KEY: 'k' }, asyn
   const { impl } = captureFetch(fenced);
   const out = await askLlmJSON({ system: 's', user: 'u', fetchImpl: impl });
   assert.deepEqual(out, { title_ko: '제목' });
+}));
+
+// ── 응답 잘림 감지 ───────────────────────────────
+
+const resOf = payload => async () => ({
+  ok: true, status: 200, statusText: 'OK',
+  async json() { return payload; },
+  async text() { return JSON.stringify(payload); },
+});
+
+test('잘림: anthropic stop_reason=max_tokens를 파싱 실패가 아니라 잘림으로 보고', withKey(async () => {
+  // 회귀: 상한에서 끊긴 JSON을 "파싱 실패"로 뭉뚝그려 원인을 못 찾던 문제
+  const truncated = { stop_reason: 'max_tokens', content: [{ type: 'text', text: '{"title_ko":"잘린' }] };
+  await assert.rejects(
+    () => askLlmJSON({ system: 's', user: 'u', maxTokens: 600, fetchImpl: resOf(truncated) }),
+    /maxTokens\(600\)에서 잘렸/,
+  );
+}));
+
+test('잘림: 정상 종료는 그대로 파싱', withKey(async () => {
+  const ok = { stop_reason: 'end_turn', content: [{ type: 'text', text: '{"title_ko":"제목"}' }] };
+  assert.deepEqual(await askLlmJSON({ system: 's', user: 'u', fetchImpl: resOf(ok) }), { title_ko: '제목' });
+}));
+
+test('잘림: openai finish_reason=length도 감지', withEnv({ OPENAI_API_KEY: 'k' }, async () => {
+  const truncated = { choices: [{ finish_reason: 'length', message: { content: '{"a":' } }] };
+  await assert.rejects(
+    () => askLlmJSON({ system: 's', user: 'u', fetchImpl: resOf(truncated) }),
+    /잘렸/,
+  );
 }));

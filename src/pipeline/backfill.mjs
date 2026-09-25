@@ -5,25 +5,26 @@
 // 영원히 원문(영어)으로 남는다. 이 스크립트만이 그걸 되돌린다.
 //
 // 사용법:
-//   node --env-file-if-exists=.env src/pipeline/backfill.mjs [--limit=20] [--date=2026-08-01] [--source=arxiv] [--dry]
+//   node --env-file-if-exists=.env src/pipeline/backfill.mjs [--limit=20] [--date=2026-08-01] [--source=arxiv] [--dry] [--retry-empty]
 //
 // LLM 호출이 항목당 1~2회라 비용·시간이 크다. --limit으로 나눠 돌리는 것을 전제로 한다.
 // 처리한 행은 backfilled_at이 찍혀 재실행해도 다시 과금되지 않는다.
 
 import { pathToFileURL } from 'node:url';
-import { openDb, getBackfillTargets, updateItemContent } from '../db/index.mjs';
+import { openDb, getBackfillTargets, updateItemContent, resetEmptyBackfills } from '../db/index.mjs';
 import { translateItem } from './translate.mjs';
 import { generateDetail } from './detail.mjs';
 import { hasLlm, activeProviderInfo } from './llm.mjs';
 
 function parseArgs(argv) {
-  const opts = { limit: 20, date: null, source: null, dry: false, dbPath: 'daily-digest.db' };
+  const opts = { limit: 20, date: null, source: null, dry: false, retryEmpty: false, dbPath: 'daily-digest.db' };
   for (const a of argv) {
     const [k, v] = a.replace(/^--/, '').split('=');
     if (k === 'limit') opts.limit = Number(v);
     else if (k === 'date') opts.date = v;
     else if (k === 'source') opts.source = v;
     else if (k === 'dry') opts.dry = true;
+    else if (k === 'retry-empty') opts.retryEmpty = true;
     else if (k === 'db') opts.dbPath = v;
   }
   return opts;
@@ -40,9 +41,13 @@ const toCandidate = row => ({
 });
 
 export async function runBackfill(opts) {
-  const { limit, date, source, dry, dbPath } = opts;
+  const { limit, date, source, dry, retryEmpty, dbPath } = opts;
   const db = openDb(dbPath);
   try {
+    if (retryEmpty && !dry) {
+      const reset = resetEmptyBackfills(db);
+      console.log(`[backfill] 결과가 빈 행 ${reset}건을 대상으로 되돌림`);
+    }
     const targets = getBackfillTargets(db, { date, source, limit });
     const provider = activeProviderInfo();
     console.log(`[backfill] 대상 ${targets.length}건 (limit ${limit}`
@@ -82,6 +87,10 @@ export async function runBackfill(opts) {
         console.log(`  [${i + 1}/${targets.length}] ${label}: `
           + `번역 ${gotTranslation ? 'O' : '-'} / 상세 ${gotDetail ? 'O' : '-'}`
           + `${d.usedFullText ? ' (전문)' : ''}`);
+        // 두 함수는 실패해도 throw하지 않고 원문 폴백한다 — 사유를 찍지 않으면
+        // CI 로그에 '-'만 남아 왜 비었는지 알 수 없다.
+        if (t.translateError) console.error(`      번역 실패: ${t.translateError}`);
+        if (d.detailError) console.error(`      상세 실패: ${d.detailError}`);
       } catch (err) {
         skipped++;
         console.error(`  [${i + 1}/${targets.length}] ${label} 실패: ${err.message}`);
