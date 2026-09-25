@@ -43,9 +43,19 @@
 
   <main class="feed" id="feed" aria-live="polite"></main>
 
+  <!-- 아카이브: 날짜가 수백 개까지 늘어나므로 기본은 접어두고, 월별로 나눠 4열 그리드로 보인다. -->
   <section class="archive" id="archive" hidden>
-    <h2 class="archive__title">아카이브</h2>
-    <ul class="archive__list" id="archiveList"></ul>
+    <h2 class="archive__title">
+      <button class="archive__toggle" id="archiveToggle" aria-expanded="false" aria-controls="archiveBody">
+        <span class="archive__caret" aria-hidden="true">▸</span>
+        아카이브
+        <span class="archive__total" id="archiveTotal"></span>
+      </button>
+    </h2>
+    <div class="archive__body" id="archiveBody" hidden>
+      <div class="archive__months" id="archiveMonths" role="group" aria-label="월 선택"></div>
+      <ul class="archive__grid" id="archiveList"></ul>
+    </div>
   </section>
 
   <footer class="pagefoot">

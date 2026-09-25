@@ -212,23 +212,65 @@ function renderResults(feed, dateLabel) {
   });
 }
 
+// ── 아카이브 ────────────────────────────────────────────────────
+// 매일 쌓이므로 날짜 목록이 길어진다. 기본은 접어두고, 월 단위로 끊어 4열 그리드로 보인다.
+
+/** dates(최신순) → Map<'2026-09', [{date, count, index}]> — 삽입 순서가 곧 최신 월 순서 */
+function groupByMonth(dates) {
+  const byMonth = new Map();
+  dates.forEach((d, index) => {
+    const month = d.date.slice(0, 7);
+    if (!byMonth.has(month)) byMonth.set(month, []);
+    byMonth.get(month).push({ ...d, index });
+  });
+  return byMonth;
+}
+
+const monthLabel = m => `${m.slice(0, 4)}년 ${Number(m.slice(5))}월`;
+
+/** 날짜 칸 하나 — 누르면 그 날짜의 다이제스트로 이동 */
+function archiveCell(day) {
+  const btn = el('button', 'archive__date');
+  btn.append(el('span', 'archive__day', day.date), el('span', 'archive__count', `${day.count}건`));
+  btn.addEventListener('click', () => {
+    clearFilters();            // 필터가 걸려 있으면 날짜를 바꿔도 화면에 반영되지 않는다
+    state.dateIndex = day.index;
+    render();
+    window.scrollTo(0, 0);
+  });
+  const li = el('li');
+  li.append(btn);
+  return li;
+}
+
 function renderArchive() {
   const section = $('archive');
-  const list = $('archiveList');
   if (state.data.dates.length <= 1) { section.hidden = true; return; }
   section.hidden = false;
-  list.replaceChildren();
-  state.data.dates.forEach((d, i) => {
-    const li = el('li', 'archive__item');
-    const btn = el('button', 'archive__date', d.date);
-    btn.addEventListener('click', () => {
-      clearFilters();            // 필터가 걸려 있으면 날짜를 바꿔도 화면에 반영되지 않는다
-      state.dateIndex = i;
-      render();
-      window.scrollTo(0, 0);
-    });
-    li.append(btn, el('span', 'archive__count', `${d.count}건`));
-    list.append(li);
+
+  const byMonth = groupByMonth(state.data.dates);
+  const grid = $('archiveList');
+  const tabs = $('archiveMonths');
+
+  const showMonth = month => {
+    for (const tab of tabs.children) tab.setAttribute('aria-pressed', String(tab.dataset.month === month));
+    grid.replaceChildren(...byMonth.get(month).map(archiveCell));
+  };
+
+  tabs.replaceChildren(...[...byMonth].map(([month, days]) => {
+    const tab = el('button', 'archive__month', `${monthLabel(month)} · ${days.length}일`);
+    tab.dataset.month = month;
+    tab.addEventListener('click', () => showMonth(month));
+    return tab;
+  }));
+  showMonth(byMonth.keys().next().value);   // 기본은 가장 최근 월
+
+  $('archiveTotal').textContent = `${state.data.dates.length}일`;
+  const toggle = $('archiveToggle');
+  toggle.addEventListener('click', () => {
+    const open = toggle.getAttribute('aria-expanded') === 'true';
+    toggle.setAttribute('aria-expanded', String(!open));
+    $('archiveBody').hidden = open;
   });
 }
 
