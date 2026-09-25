@@ -5,6 +5,17 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>daily-digest</title>
   <meta name="description" content="Hacker News · GeekNews · arXiv · Phys.org · TechXplore 5개 소스 한국어 큐레이션">
+  <!-- 공유 카드(OG · Twitter). 이미지는 images/에서 빌드 시 public/images/로 복사된다. -->
+  <meta property="og:type" content="website">
+  <meta property="og:site_name" content="daily-digest">
+  <meta property="og:title" content="daily-digest">
+  <meta property="og:description" content="매일 5개 기술·과학 소스에서 하나씩, 한국어로">
+  <meta property="og:url" content="https://jtech-co.github.io/daily-digest/">
+  <meta property="og:image" content="https://jtech-co.github.io/daily-digest/images/og.png">
+  <meta property="og:image:width" content="1200">
+  <meta property="og:image:height" content="630">
+  <meta property="og:image:alt" content="daily-digest: 매일 5개 기술·과학 소스에서 하나씩, 한국어로">
+  <meta name="twitter:card" content="summary_large_image">
   <!-- 방어 계층(BYOK 사이트). 스크립트는 자기 출처만, 연결은 data.json과 4개 LLM 프로바이더로 제한.
        GitHub Pages는 응답 헤더를 못 붙이므로 meta로 선언한다. -->
   <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self'; style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://fonts.googleapis.com; font-src 'self' https://cdn.jsdelivr.net https://fonts.gstatic.com; img-src 'self' data:; connect-src 'self' https://api.anthropic.com https://api.openai.com https://api.x.ai https://generativelanguage.googleapis.com; base-uri 'none'; form-action 'none'">
@@ -16,7 +27,7 @@
   <link rel="stylesheet" href="styles.css">
   <link rel="alternate" type="application/atom+xml" title="daily-digest (Atom)" href="feed.xml">
   <link rel="alternate" type="application/feed+json" title="daily-digest (JSON Feed)" href="feed.json">
-  <!-- FOUC 방지: 저장된 테마를 렌더 전에 적용(외부 파일 — CSP script-src 'self') -->
+  <!-- FOUC 방지: 저장된 테마를 렌더 전에 적용(외부 파일, CSP script-src 'self') -->
   <script src="theme-init.js"></script>
 </head>
 <body>

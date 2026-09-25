@@ -1,7 +1,7 @@
-// 테스트 공용 헬퍼 — 파일마다 재정의되던 env 격리·mock 응답 팩토리를 한곳에 모은다.
+// 테스트 공용 헬퍼: 파일마다 재정의되던 env 격리·mock 응답 팩토리를 한곳에 모은다.
 // (node --test "test/*.test.mjs" 글롭에 걸리지 않으므로 테스트 파일로 실행되지 않는다)
 
-/** LLM 관련 환경변수 전체 — 실행 환경에 우연히 키가 있어도 테스트가 결정적이도록 모두 비운다 */
+/** LLM 관련 환경변수 전체: 실행 환경에 우연히 키가 있어도 테스트가 결정적이도록 모두 비운다 */
 export const ALL_LLM_ENV = [
   'ANTHROPIC_API_KEY', 'OPENAI_API_KEY', 'XAI_API_KEY', 'GROK_API_KEY',
   'GEMINI_API_KEY', 'GOOGLE_API_KEY', 'LLM_PROVIDER',

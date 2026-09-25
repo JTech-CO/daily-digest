@@ -8,7 +8,7 @@
 // 사용법:
 //   node src/pipeline/repair-html.mjs [--dry] [--db=daily-digest.db]
 //
-// 번역 상태(is_translated·backfilled_at)는 건드리지 않는다 — LLM 백필 대상은 그대로 남는다.
+// 번역 상태(is_translated·backfilled_at)는 건드리지 않는다. LLM 백필 대상은 그대로 남는다.
 
 import { pathToFileURL } from 'node:url';
 import { openDb } from '../db/index.mjs';
@@ -18,7 +18,7 @@ import { htmlToText } from '../adapters/http.mjs';
 //  - arXiv 초록의 'responses <You are right, I made a mistake>'
 //  - GeekNews 제목의 'lab | up >/conf'
 // 둘 다 실제 데이터에 있다. 그래서 '<' 뒤에 진짜 태그명이 붙은 경우만 인정한다.
-// 닫는 '>'는 선택 — 소스가 본문을 자르며 '<a href="https://new'처럼 끊어놓기도 한다.
+// 닫는 '>'는 선택: 소스가 본문을 자르며 '<a href="https://new'처럼 끊어놓기도 한다.
 const HAS_MARKUP =
   /<\/?(a|p|br|div|span|img|ul|ol|li|pre|code|em|strong|b|i|h[1-6]|blockquote|table)\b[^>]*>?|&#x?[0-9a-fA-F]+;/;
 

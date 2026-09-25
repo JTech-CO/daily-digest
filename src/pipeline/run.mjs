@@ -19,7 +19,7 @@ import { openDb, savePicks, kstDateString, getPickedItemKeys } from '../db/index
  */
 export async function runPipeline({ windowHours = 24, dbPath = 'daily-digest.db', log = console.log } = {}) {
   const pickDate = kstDateString();
-  log(`[pipeline] ${pickDate} 시작 — 수집 창 ${windowHours}h`);
+  log(`[pipeline] ${pickDate} 시작 (수집 창 ${windowHours}h)`);
 
   const { candidatesBySource, failures } = await collectAll({ windowHours });
   for (const [source, list] of Object.entries(candidatesBySource)) {
@@ -28,7 +28,7 @@ export async function runPipeline({ windowHours = 24, dbPath = 'daily-digest.db'
   for (const f of failures) log(`  ✗ ${f}`);
 
   const llm = activeProviderInfo();
-  log(`  LLM: ${llm ? `${llm.name} (${llm.model})` : 'OFF — 키 없음, 번역/4차dedup 비활성'}`);
+  log(`  LLM: ${llm ? `${llm.name} (${llm.model})` : 'OFF (키 없음, 번역/4차dedup 비활성)'}`);
 
   // 과거에 이미 실린 항목은 다시 뽑지 않는다(콘텐츠 반복 방지 + 저장 시 과거 날짜 유실 방어)
   let excludeKeys = new Set();
@@ -48,7 +48,7 @@ export async function runPipeline({ windowHours = 24, dbPath = 'daily-digest.db'
   const { items: translated, stats } = await translateAll(order);
   log(`  번역 ${stats.translated} / 정제 ${stats.refined} / 실패 ${stats.failed} (실패율 ${(stats.failureRate * 100).toFixed(1)}%)`);
 
-  // 상세 뷰(제목/패널 클릭)용 3구성 생성 — 기사 전문 기반(원문 번역본·요약·블로그 초안)
+  // 상세 뷰(제목/패널 클릭)용 3구성 생성: 기사 전문 기반(원문 번역본·요약·블로그 초안)
   const { items, stats: detailStats } = await generateDetailsAll(translated);
   log(`  상세 생성 ${detailStats.generated}/${detailStats.total} (전문 ${detailStats.fullText}, 실패 ${detailStats.failed})`);
 
@@ -57,7 +57,7 @@ export async function runPipeline({ windowHours = 24, dbPath = 'daily-digest.db'
     const db = openDb(dbPath);
     try {
       saved = savePicks(db, { pickDate, items, dedupLog });
-      log(`  저장 — 신규 ${saved.inserted} / 유지 ${saved.updated} / 교체제거 ${saved.removed} / dedup_log ${saved.dedupRows}`);
+      log(`  저장: 신규 ${saved.inserted} / 유지 ${saved.updated} / 교체제거 ${saved.removed} / dedup_log ${saved.dedupRows}`);
     } finally {
       db.close();
     }

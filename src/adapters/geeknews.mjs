@@ -1,4 +1,4 @@
-// GeekNews 어댑터 — 홈페이지(인기 순위) + 공식 RSS 폴백 (기술 백서 §2.3)
+// GeekNews 어댑터: 홈페이지(인기 순위) + 공식 RSS 폴백 (기술 백서 §2.3)
 //
 // 홈페이지는 투표로 순위가 정해지므로 "인기" 신호의 원천이다. 마크업:
 //   <div class='topic_row' data-topic-state-id='31106' ...>
@@ -8,7 +8,7 @@
 //       <time ... data-timestamp="1783125362">
 // 홈 구조가 바뀌어 파싱이 실패하면(§9 리스크) RSS 게시 순서로 자동 폴백한다.
 //
-// GeekNews 텍스트는 한국어(번역 대상 아님 — M3에서 정제만, §0).
+// GeekNews 텍스트는 한국어(번역 대상 아님, M3에서 정제만, §0).
 
 import Parser from 'rss-parser';
 import { fetchText, htmlToText, stripHtmlIfAny } from './http.mjs';
@@ -30,10 +30,10 @@ export async function fetchCandidates({ windowHours = 24, limit = 20, fetchImpl 
       .filter(c => Date.parse(c.publishedAt) >= sinceMs)
       .slice(0, limit);
   } catch (err) {
-    console.warn(`${err.message} — RSS 게시 순서로 폴백`);
+    console.warn(`${err.message} (RSS 게시 순서로 폴백)`);
   }
 
-  // 2차 폴백: 공식 RSS(Atom) — 시간순, 인기 신호 없음
+  // 2차 폴백: 공식 RSS(Atom) - 시간순, 인기 신호 없음
   const xml = await fetchText(SOURCE, RSS_URL, { fetchImpl });
   const feed = await new Parser().parseString(xml);
   return (feed.items ?? [])

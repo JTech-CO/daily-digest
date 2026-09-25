@@ -1,4 +1,4 @@
-// 정적 사이트 빌드 — DB → public/ (기술 백서 §6 "정적 사이트 재빌드")
+// 정적 사이트 빌드: DB → public/ (기술 백서 §6 "정적 사이트 재빌드")
 //
 // web/의 정적 자산을 public/으로 복사하고, SQLite에서 전체 날짜·선별 결과를
 // public/data.json으로 내보낸다. 프론트엔드는 data.json만 fetch한다.
@@ -11,6 +11,7 @@ import { buildAtom, buildJsonFeed } from './feed.mjs';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..', '..');
 const WEB_DIR = join(ROOT, 'web');
+const IMAGES_DIR = join(ROOT, 'images');   // OG 이미지 등 공유 정적 자산
 const PUBLIC_DIR = join(ROOT, 'public');
 const DB_PATH = join(ROOT, 'daily-digest.db');
 // 피드의 절대 URL 기준. 다른 곳에 배포하면 SITE_URL로 덮어쓴다.
@@ -40,23 +41,28 @@ function buildData() {
   }
 }
 
-function copyStatic() {
-  mkdirSync(PUBLIC_DIR, { recursive: true });
-  for (const entry of readdirSync(WEB_DIR, { withFileTypes: true })) {
-    if (entry.isFile()) copyFileSync(join(WEB_DIR, entry.name), join(PUBLIC_DIR, entry.name));
+function copyFiles(from, to) {
+  mkdirSync(to, { recursive: true });
+  for (const entry of readdirSync(from, { withFileTypes: true })) {
+    if (entry.isFile()) copyFileSync(join(from, entry.name), join(to, entry.name));
   }
+}
+
+function copyStatic() {
+  copyFiles(WEB_DIR, PUBLIC_DIR);
+  copyFiles(IMAGES_DIR, join(PUBLIC_DIR, 'images'));   // og:image가 같은 출처에서 서빙되도록
 }
 
 copyStatic();
 const data = buildData();
 writeFileSync(join(PUBLIC_DIR, 'data.json'), JSON.stringify(data));
 
-// 구독용 피드(Atom · JSON Feed) — 최근 30일치
+// 구독용 피드(Atom · JSON Feed): 최근 30일치
 writeFileSync(join(PUBLIC_DIR, 'feed.xml'),
   buildAtom(data, { siteUrl: SITE_URL, updated: data.generatedAt }));
 writeFileSync(join(PUBLIC_DIR, 'feed.json'),
   JSON.stringify(buildJsonFeed(data, { siteUrl: SITE_URL })));
 
-console.log(`[build] public/ 생성 — ${data.dates.length}일치, `
+console.log(`[build] public/ 생성: ${data.dates.length}일치, `
   + `${Object.values(data.picks).reduce((n, p) => n + p.length, 0)}건`
   + ` (+ feed.xml, feed.json)`);

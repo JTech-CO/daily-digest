@@ -78,7 +78,7 @@ test('fetchText: 네트워크 오류는 소스 컨텍스트 포함해 throw', as
 
 test('geeknews: 홈에 topic_row 없으면 RSS 게시 순서로 폴백', async () => {
   const impl = mockFetch([
-    // 구체적 경로(RSS)를 먼저 — 'news.hada.io/'가 RSS URL까지 잡지 않도록
+    // 구체적 경로(RSS)를 먼저: 'news.hada.io/'가 RSS URL까지 잡지 않도록
     ['news.hada.io/rss/news', ok(ATOM('999', '폴백 뉴스'))],
     ['news.hada.io/', ok('<html><body>구조가 바뀐 홈페이지</body></html>')],
   ]);

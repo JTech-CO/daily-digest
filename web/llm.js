@@ -1,10 +1,10 @@
-// 브라우저 LLM 클라이언트 — 사용자가 사이트에서 입력한 API 키로 직접 호출(BYOK).
+// 브라우저 LLM 클라이언트: 사용자가 사이트에서 입력한 API 키로 직접 호출(BYOK).
 //
 // 브라우저 직접 호출(CORS) 지원 실측 근거:
-//   anthropic — anthropic-dangerous-direct-browser-access: true 헤더 필요
-//   openai    — 지원(특수 헤더 불필요)
-//   gemini    — 지원(x-goog-api-key 헤더)
-//   grok(xAI) — 공식 지원 없음, CORS로 차단될 가능성 높음(실패 시 안내)
+//   anthropic - anthropic-dangerous-direct-browser-access: true 헤더 필요
+//   openai    - 지원(특수 헤더 불필요)
+//   gemini    - 지원(x-goog-api-key 헤더)
+//   grok(xAI) - 공식 지원 없음, CORS로 차단될 가능성 높음(실패 시 안내)
 //
 // 키는 이 브라우저(localStorage)에만 저장되고, 선택한 프로바이더로만 직접 전송된다.
 
@@ -152,7 +152,7 @@ export async function askLlmJSON({ system, user, maxTokens = 2000, timeoutMs = 6
       throw new Error(`API 오류 ${res.status}: ${detail}`);
     }
 
-    // 200이어도 프록시/게이트웨이가 HTML 등 비-JSON을 줄 수 있다 — 원시 예외 대신 안내.
+    // 200이어도 프록시/게이트웨이가 HTML 등 비-JSON을 줄 수 있다. 원시 예외 대신 안내.
     let data;
     try {
       data = await res.json();
@@ -173,7 +173,7 @@ export async function askLlmJSON({ system, user, maxTokens = 2000, timeoutMs = 6
   }
 }
 
-// 상세 3구성 생성 프롬프트 — src/pipeline/detail.mjs와 동일한 규격
+// 상세 3구성 생성 프롬프트: src/pipeline/detail.mjs와 동일한 규격
 const OUT_SPEC =
   '출력은 JSON만: {"translation":"...","summary":"...","blog":"..."}. '
   + 'blog는 마크다운(제안 제목 # 한 줄, 도입 문단, 핵심 포인트 불릿, 짧은 시사점). '

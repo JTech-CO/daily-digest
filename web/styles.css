@@ -1,4 +1,4 @@
-/* daily-digest — 디자인 백서 v0.1 구현
+/* daily-digest: 디자인 백서 v0.1 구현
    다크 기본 + 라이트 전환, 단일 브랜드 액센트(테라코타) + 소스 카테고리 5색. */
 
 /* ── 1. 컬러 토큰 (§1.1, §1.2) ────────────────────────────────── */
@@ -369,7 +369,7 @@ a:hover { text-decoration: underline; }
 
 .empty { color: var(--text-muted); padding: 32px 0; text-align: center; }
 
-/* ── 상세 뷰(모달) — 소스 카테고리 색 강조 ───────────────────── */
+/* ── 상세 뷰(모달): 소스 카테고리 색 강조 ───────────────────── */
 .detail[hidden] { display: none; }
 .detail {
   position: fixed;
@@ -570,7 +570,7 @@ select.field__input { cursor: pointer; }
 .btn--accent:hover { background: color-mix(in srgb, var(--accent) 88%, #000); }
 .settings__status { font-size: 13px; color: var(--text-muted); margin: 12px 0 0; min-height: 1em; text-align: right; }
 
-/* 상세 뷰 — 브라우저 직접 생성 버튼/상태 */
+/* 상세 뷰: 브라우저 직접 생성 버튼/상태 */
 .detail__gen {
   border: 1px dashed var(--border-hover);
   border-radius: 8px;
@@ -596,7 +596,7 @@ select.field__input { cursor: pointer; }
 .detail__generate:disabled { color: var(--text-dim); background: none; cursor: default; }
 .detail__gen-hint { font-size: 13px; color: var(--text-dim); margin: 4px 0 0; }
 
-/* ── 5. 모션 — reduced-motion 존중 ────────────────────────────── */
+/* ── 5. 모션: reduced-motion 존중 ────────────────────────────── */
 @media (prefers-reduced-motion: reduce) {
   * { transition-duration: 0ms !important; }
 }

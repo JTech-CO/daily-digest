@@ -1,9 +1,9 @@
-// arXiv 어댑터 — 공식 Atom API(최신) + Hugging Face Daily Papers(인기) (기술 백서 §2.4)
+// arXiv 어댑터: 공식 Atom API(최신) + Hugging Face Daily Papers(인기) (기술 백서 §2.4)
 //
 // 최신 트랙: export.arxiv.org Atom API, AI/엔지니어링 카테고리, submittedDate 내림차순.
 //   §9: 간헐적 429 → 지수 백오프 재시도(fetchText retries).
 //
-// 인기 트랙: HF Daily Papers — 업보트 주석이 아니라 **후보 자체**로 사용한다.
+// 인기 트랙: HF Daily Papers - 업보트 주석이 아니라 **후보 자체**로 사용한다.
 //   운영 33일 실측(2026-07~08): arXiv API의 submittedDate 신선분은 주 3일(수·목·금 실행)만
 //   24h 창에 들어오고 나머지 날은 최신 논문이 31~106시간 전이라 창이 통째로 비었다.
 //   반면 HF Daily Papers는 월~금 매일 17~40건을 큐레이션한다(토·일은 0건).
@@ -45,7 +45,7 @@ export async function fetchCandidates({ windowHours = 24, limit = 30, fetchImpl 
     })
     .filter(c => Date.parse(c.publishedAt) >= sinceMs);
 
-  // 인기 트랙 — HF Daily Papers를 후보로 사용(실패 시 최신순만으로 폴백, §9)
+  // 인기 트랙: HF Daily Papers를 후보로 사용(실패 시 최신순만으로 폴백, §9)
   let popular = [];
   let upvotesById = new Map();
   try {
@@ -57,7 +57,7 @@ export async function fetchCandidates({ windowHours = 24, limit = 30, fetchImpl 
       .map(e => [String(e.paper.id), e.paper.upvotes ?? 0]));
     popular = entries.map(toCandidateFromHf).filter(Boolean);
   } catch (err) {
-    console.warn(`${err.message} — HF 인기 신호 없이 최신순만 사용`);
+    console.warn(`${err.message} (HF 인기 신호 없이 최신순만 사용)`);
   }
   for (const c of latest) {
     if (upvotesById.has(baseId(c.sourceItemId))) {

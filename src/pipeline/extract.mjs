@@ -38,6 +38,6 @@ export function extractArticleText(html, { maxChars = 12000 } = {}) {
     .map(l => l.replace(/[\t\f\r ]+/g, ' ').trim())
     .filter(l => l.length > 0);
 
-  // 내비/캡션 같은 아주 짧은 줄이 과반이면 노이즈일 가능성 — 그래도 문단 위주로 join
+  // 내비/캡션 같은 아주 짧은 줄이 과반이면 노이즈일 가능성: 그래도 문단 위주로 join
   return lines.join('\n').slice(0, maxChars);
 }

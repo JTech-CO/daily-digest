@@ -1,4 +1,4 @@
-// 상세 뷰 3구성 생성 검증 — 전문 기반(#4/#6) 포함
+// 상세 뷰 3구성 생성 검증: 전문 기반(#4/#6) 포함
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { generateDetail, generateDetailsAll } from '../src/pipeline/detail.mjs';
@@ -100,7 +100,7 @@ test('geeknews: 정제 모드(전문 미시도)', withKey(async () => {
   assert.equal(d.translation, '정제됨');
 }));
 
-test('HN 셀프포스트(토론 페이지)는 전문 추출을 시도하지 않는다 — 댓글 오인 방지', withKey(async () => {
+test('HN 셀프포스트(토론 페이지)는 전문 추출을 시도하지 않는다 (댓글 오인 방지)', withKey(async () => {
   let articleFetched = false;
   const fetchImpl = async (url) => {
     if (url.includes('api.anthropic.com')) return llmRes({ translation: '본문번역', summary: '요약', blog: '블로그' });

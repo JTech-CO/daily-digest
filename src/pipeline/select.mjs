@@ -1,7 +1,7 @@
 // 선별 + 재분배 (기술 백서 §0 재분배 규칙, §3.3)
 //
 // 소스당 1건 기준. 후보 0건인 소스의 슬롯은 후보 2건 이상 남은 소스에서
-// 순위 하위로 보충한다(소스당 최대 3건 상한 — 편중 방지).
+// 순위 하위로 보충한다(소스당 최대 3건 상한, 편중 방지).
 // 총량이 5건 미만으로 끝나는 날도 정상 동작으로 허용한다(§0).
 //
 // 어댑터가 반환하는 배열 순서 자체가 "최신+인기" 결합 랭킹이다(어댑터 계약).
@@ -23,7 +23,7 @@ export { SOURCES };
  * @param {number} [options.maxPerSource=3]
  * @param {null | ((a, b) => Promise<boolean>)} [options.classifyPair] 4차 dedup LLM 판정기
  * @param {Set<string>} [options.excludeKeys] 과거에 이미 선택된 `source|sourceItemId` 집합.
- *   같은 항목이 다른 날 다시 뽑히는 것을 막는다 — 콘텐츠 반복 방지이자,
+ *   같은 항목이 다른 날 다시 뽑히는 것을 막는다. 콘텐츠 반복 방지이자,
  *   저장 시 UNIQUE(source, source_item_id) 충돌로 과거 날짜에서 항목이 사라지는 것을 막는 방어.
  * @returns {Promise<{
  *   order: Array<object & { selectionReason: 'primary'|'redistributed' }>,
@@ -55,7 +55,7 @@ export async function selectDaily(candidatesBySource, {
     similarityScore: dup.score,
   });
 
-  // 1) 소스당 1건 기본 선별 — 이전 소스 픽과의 중복은 풀 구축 시점에 제거(§3.3)
+  // 1) 소스당 1건 기본 선별: 이전 소스 픽과의 중복은 풀 구축 시점에 제거(§3.3)
   for (const source of sources) {
     const pool = [];
     for (const candidate of candidatesBySource[source] ?? []) {
@@ -73,7 +73,7 @@ export async function selectDaily(candidatesBySource, {
     }
   }
 
-  // 2) 재분배 — 잔여 풀이 큰 소스부터, 순위 하위로 보충(소스당 상한 유지)
+  // 2) 재분배: 잔여 풀이 큰 소스부터, 순위 하위로 보충(소스당 상한 유지)
   let remaining = deficits.length;
   const donors = sources
     .filter(s => !deficits.includes(s))
@@ -93,7 +93,7 @@ export async function selectDaily(candidatesBySource, {
     if (remaining === 0) break;
   }
 
-  // 3) 노출 순서 — 소스 고정 순서, 소스 내에서는 primary → redistributed
+  // 3) 노출 순서: 소스 고정 순서, 소스 내에서는 primary → redistributed
   const order = [];
   for (const source of sources) {
     for (const [i, candidate] of picks[source].entries()) {

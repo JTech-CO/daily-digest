@@ -1,4 +1,4 @@
-// 파이프라인 인베리언트 가드 — 무증상 실패 감지
+// 파이프라인 인베리언트 가드: 무증상 실패 감지
 //
 // 배경: 워크플로 종료 코드만으로는 "돌긴 돌았는데 결과가 비었다"를 잡지 못한다.
 // 실제로 33일간 매일 success였지만 LLM 키가 없어 번역·상세가 0건이었고,
@@ -27,12 +27,12 @@ export function checkInvariants(result, {
   const issues = [];
   const { items = [], stats = {}, detailStats = {}, failures = [], deficits = [] } = result ?? {};
 
-  // 1) 게시 건수 — 재분배까지 하고도 너무 적으면 수집 자체가 무너진 것
+  // 1) 게시 건수: 재분배까지 하고도 너무 적으면 수집 자체가 무너진 것
   if (items.length < minItems) {
     issues.push({ level: 'error', message: `게시 건수 ${items.length}건 (최소 ${minItems}건)` });
   }
 
-  // 2) 키가 있는데 한 건도 번역되지 않음 — 오늘 실제로 겪은 무증상 실패
+  // 2) 키가 있는데 한 건도 번역되지 않음. 오늘 실제로 겪은 무증상 실패
   if (llmConfigured) {
     const needTranslation = items.filter(i => i.source !== 'geeknews').length;
     if (needTranslation > 0 && (stats.translated ?? 0) === 0) {
@@ -54,8 +54,8 @@ export function checkInvariants(result, {
     issues.push({ level: 'error', message: `상세 생성 실패율 ${pct(dFail)} (허용 ${pct(maxDetailFailRate)})` });
   }
 
-  // 4) 수집 실패 소스 — 재분배로 건수는 채워지므로 경고로 남기되 눈에 띄게
-  for (const f of failures) issues.push({ level: 'warn', message: `소스 수집 실패 — ${f}` });
+  // 4) 수집 실패 소스: 재분배로 건수는 채워지므로 경고로 남기되 눈에 띄게
+  for (const f of failures) issues.push({ level: 'warn', message: `소스 수집 실패 (${f})` });
 
   // 5) 결손 소스(후보 0건). 정상 범위(주말 arXiv 등)라 경고.
   if (deficits.length > 0) {

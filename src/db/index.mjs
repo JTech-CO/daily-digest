@@ -1,9 +1,9 @@
-// SQLite 저장 계층 (기술 백서 §5) — node:sqlite 내장 드라이버
+// SQLite 저장 계층 (기술 백서 §5): node:sqlite 내장 드라이버
 //
 // 단일 사용자·일 5~8건 규모라 단일 파일 SQLite로 충분(§5).
 // UNIQUE(source, source_item_id)로 같은 항목의 재적재를 막는다.
 // 같은 날 재실행(workflow_dispatch)의 멱등성은 savePicks가 그날 행을 지우고 다시 넣어 보장한다
-// (ON CONFLICT는 크로스-날짜 충돌에만 걸리며, 그 경우 행이 다른 날짜로 이동한다 —
+// (ON CONFLICT는 크로스-날짜 충돌에만 걸리며, 그 경우 행이 다른 날짜로 이동한다.
 //  선별 단계의 excludeKeys가 애초에 그런 재선택을 막는다).
 
 import { DatabaseSync } from 'node:sqlite';
@@ -36,7 +36,7 @@ function migrate(db) {
   addColumn('detail_translation', 'TEXT');
   addColumn('detail_summary', 'TEXT');
   addColumn('detail_blog', 'TEXT');
-  // 백필 처리 시각 — 결과가 비어도 재처리(재과금)하지 않도록 표시용
+  // 백필 처리 시각: 결과가 비어도 재처리(재과금)하지 않도록 표시용
   addColumn('backfilled_at', 'TEXT');
 }
 
@@ -140,7 +140,7 @@ export function savePicks(db, { pickDate, items, dedupLog = [] }) {
 }
 
 /**
- * 백필 대상 행을 반환한다 — 번역이 안 됐거나 상세가 비어 있고, 아직 백필하지 않은 항목.
+ * 백필 대상 행을 반환한다. 번역이 안 됐거나 상세가 비어 있고, 아직 백필하지 않은 항목.
  * @param {object} [filter] { date, source, limit }
  */
 export function getBackfillTargets(db, { date = null, source = null, limit = 50 } = {}) {
@@ -179,7 +179,7 @@ export function updateItemContent(db, id, {
 
 /**
  * 이미 게시된 항목 키(`source|source_item_id`) 집합을 반환한다.
- * exceptDate를 지정하면 그 날짜의 픽은 제외 — 같은 날 재실행(workflow_dispatch)이
+ * exceptDate를 지정하면 그 날짜의 픽은 제외: 같은 날 재실행(workflow_dispatch)이
  * 자기 자신 때문에 후보를 잃지 않도록(멱등) 하기 위함.
  * @returns {Set<string>}
  */
@@ -190,7 +190,7 @@ export function getPickedItemKeys(db, { exceptDate = null } = {}) {
   return new Set(rows.map(r => `${r.source}|${r.source_item_id}`));
 }
 
-/** 저장된 날짜 목록(최신순)과 각 날짜 건수 — 아카이브 뷰(§7)용 */
+/** 저장된 날짜 목록(최신순)과 각 날짜 건수: 아카이브 뷰(§7)용 */
 export function listDates(db) {
   return db.prepare(
     'SELECT pick_date AS date, COUNT(*) AS count FROM daily_picks GROUP BY pick_date ORDER BY pick_date DESC',

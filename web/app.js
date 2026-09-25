@@ -1,4 +1,4 @@
-// daily-digest 프론트엔드 — 디자인 백서 §4, §6 구현
+// daily-digest 프론트엔드: 디자인 백서 §4, §6 구현
 // data.json(빌드 시 DB에서 생성)을 읽어 날짜별 다이제스트를 렌더링한다.
 
 import {
@@ -12,7 +12,7 @@ const BADGE = {
   physorg: 'PHYS.ORG', techxplore: 'TECHXPLORE',
 };
 
-/** id로 요소 찾기 — 이 파일에서 가장 많이 반복되던 표현 */
+/** id로 요소 찾기: 이 파일에서 가장 많이 반복되던 표현 */
 const $ = id => document.getElementById(id);
 
 /** 소스의 표시 이름(모르는 소스는 원문 그대로) */
@@ -106,7 +106,7 @@ function renderPick(pick, index) {
   if (pick.selection_reason === 'redistributed') {
     meta.append(el('span', 'pick__redist', '재분배'));
   }
-  // 출처 표기 의무 소스 (§7, 법적 조건) — 소스명 명시
+  // 출처 표기 의무 소스 (§7, 법적 조건): 소스명 명시
   if (pick.source === 'physorg' || pick.source === 'techxplore') {
     meta.append(el('span', 'pick__sep', '·'));
     meta.append(el('span', null, `출처: ${pick.source === 'physorg' ? 'Phys.org' : 'TechXplore'}`));
@@ -118,7 +118,7 @@ function renderPick(pick, index) {
 
 // ── 상태 ───────────────────────────────────────────────────────
 // query/sources가 비어 있으면 '날짜 모드', 하나라도 있으면 '검색 결과 모드'.
-// 두 모드가 같은 #feed를 공유한다. 별도 인덱스 파일은 만들지 않는다 —
+// 두 모드가 같은 #feed를 공유한다. 별도 인덱스 파일은 만들지 않는다. 
 // data.json이 이미 전체를 담고 있어 클라이언트에서 바로 거를 수 있다.
 const state = { data: null, dateIndex: 0, query: '', sources: new Set() };
 
@@ -175,7 +175,7 @@ function render() {
   const date = currentDate();
   if (!date) {
     feed.append(el('p', 'empty', '아직 게시된 다이제스트가 없습니다.'));
-    dateLabel.textContent = '—';
+    dateLabel.textContent = '-';
     return;
   }
   dateLabel.textContent = date;
@@ -188,7 +188,7 @@ function render() {
     picks.forEach((p, i) => feed.append(renderPick(p, i)));
   }
 
-  // 날짜 네비 상태 — dates는 최신순 정렬
+  // 날짜 네비 상태: dates는 최신순 정렬
   $('prevDate').disabled = state.dateIndex >= state.data.dates.length - 1;
   $('nextDate').disabled = state.dateIndex <= 0;
 }
@@ -215,7 +215,7 @@ function renderResults(feed, dateLabel) {
 // ── 아카이브 ────────────────────────────────────────────────────
 // 매일 쌓이므로 날짜 목록이 길어진다. 기본은 접어두고, 월 단위로 끊어 4열 그리드로 보인다.
 
-/** dates(최신순) → Map<'2026-09', [{date, count, index}]> — 삽입 순서가 곧 최신 월 순서 */
+/** dates(최신순) → Map<'2026-09', [{date, count, index}]>: 삽입 순서가 곧 최신 월 순서 */
 function groupByMonth(dates) {
   const byMonth = new Map();
   dates.forEach((d, index) => {
@@ -228,7 +228,7 @@ function groupByMonth(dates) {
 
 const monthLabel = m => `${m.slice(0, 4)}년 ${Number(m.slice(5))}월`;
 
-/** 날짜 칸 하나 — 누르면 그 날짜의 다이제스트로 이동 */
+/** 날짜 칸 하나: 누르면 그 날짜의 다이제스트로 이동 */
 function archiveCell(day) {
   const btn = el('button', 'archive__date');
   btn.append(el('span', 'archive__day', day.date), el('span', 'archive__count', `${day.count}건`));
@@ -298,7 +298,7 @@ function makeModal(modalId, { fill, focusId }) {
 
 // ── 상세 뷰(모달) ──────────────────────────────────────────────
 
-// LLM 출력 마크다운을 안전하게(textContent만) DOM으로 렌더 — 제목/불릿/문단만 지원
+// LLM 출력 마크다운을 안전하게(textContent만) DOM으로 렌더: 제목/불릿/문단만 지원
 function renderMarkdown(md) {
   const frag = document.createDocumentFragment();
   let list = null;
@@ -518,7 +518,7 @@ function setupSettings() {
   });
 }
 
-// ── 테마 토글 (§6) — 수동 선택이 항상 우선, 시스템 설정 미참조 ──
+// ── 테마 토글 (§6): 수동 선택이 항상 우선, 시스템 설정 미참조 ──
 function setupTheme() {
   const btn = $('themeToggle');
   const sync = () => btn.setAttribute('aria-checked', document.documentElement.dataset.theme === 'light');
@@ -551,7 +551,7 @@ function setupSearch() {
     }
   });
 
-  // 소스 칩 — data.json에 실제로 등장한 소스만 노출
+  // 소스 칩: data.json에 실제로 등장한 소스만 노출
   const present = new Set();
   for (const { date } of state.data.dates) {
     for (const p of state.data.picks[date] ?? []) present.add(p.source);

@@ -1,4 +1,4 @@
-// 로컬 정적 서버 — public/ 미리보기용 (배포는 GitHub Pages 정적 호스팅)
+// 로컬 정적 서버: public/ 미리보기용 (배포는 GitHub Pages 정적 호스팅)
 import { createServer } from 'node:http';
 import { readFile } from 'node:fs/promises';
 import { fileURLToPath } from 'node:url';
@@ -12,6 +12,10 @@ const MIME = {
   '.css': 'text/css; charset=utf-8',
   '.js': 'text/javascript; charset=utf-8',
   '.json': 'application/json; charset=utf-8',
+  '.xml': 'application/atom+xml; charset=utf-8',
+  '.png': 'image/png',
+  '.svg': 'image/svg+xml',
+  '.ico': 'image/x-icon',
 };
 
 const forbidden = (res) => res.writeHead(403, { 'content-type': 'text/plain; charset=utf-8' }).end('Forbidden');

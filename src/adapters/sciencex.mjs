@@ -25,19 +25,19 @@ export function createScienceXAdapter({ source, baseUrl }) {
       title: (item.title ?? '').trim(),
       url: item.link ?? '',
       summary: (item.contentSnippet ?? item.content ?? '').trim() || null,
-      // pubDate는 'Sat, 04 Jul 2026 06:00:01 EDT' 형태 — V8 Date.parse가 미국 약어 존을 처리
+      // pubDate는 'Sat, 04 Jul 2026 06:00:01 EDT' 형태: V8 Date.parse가 미국 약어 존을 처리
       publishedAt: new Date(item.isoDate ?? item.pubDate).toISOString(),
-      popularitySignal: null, // 투표 없는 저널리즘 매체 — 숫자 신호 부재(§0)
+      popularitySignal: null, // 투표 없는 저널리즘 매체: 숫자 신호 부재(§0)
       isPopularPick: isSpotlight,
     });
 
-    // Spotlight(인기 트랙) — 실패해도 전체 피드로 계속(§9 폴백)
+    // Spotlight(인기 트랙): 실패해도 전체 피드로 계속(§9 폴백)
     let spotlight = [];
     try {
       const feed = await parser.parseString(await fetchText(source, SPOTLIGHT_URL, { fetchImpl }));
       spotlight = (feed.items ?? []).map(i => toCandidate(i, true));
     } catch (err) {
-      console.warn(`${err.message} — Spotlight 없이 전체 피드 상위로 폴백`);
+      console.warn(`${err.message} (Spotlight 없이 전체 피드 상위로 폴백)`);
     }
 
     const allFeed = await parser.parseString(await fetchText(source, ALL_URL, { fetchImpl }));

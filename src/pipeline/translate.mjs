@@ -6,7 +6,7 @@
 //
 // 모델: llm.mjs가 선택한 프로바이더(Anthropic/OpenAI/Grok/Gemini)의 상위-빠른 모델.
 // 어떤 프로바이더 키도 없으면 원문을 그대로 두고 is_translated=0.
-// JSON 파싱 실패 시에도 원문 폴백 — 파이프라인이 죽지 않는다(§9). 실패율은 반환값에 집계.
+// JSON 파싱 실패 시에도 원문 폴백: 파이프라인이 죽지 않는다(§9). 실패율은 반환값에 집계.
 
 import { askLlmJSON, hasLlm } from './llm.mjs';
 
@@ -81,7 +81,7 @@ export async function translateAll(order, options = {}) {
   }
   const failed = items.filter(i => i.translateError).length;
   const translated = items.filter(i => i.isTranslated).length;
-  // LLM이 실제로 돌았을 때만 "정제"로 센다 — 키가 없어 건너뛴 건은 skipped
+  // LLM이 실제로 돌았을 때만 "정제"로 센다. 키가 없어 건너뛴 건은 skipped
   const skipped = items.filter(i => i.translateSkipped).length;
   const refined = items.filter(
     i => !i.isTranslated && !i.translateError && !i.translateSkipped && i.source === 'geeknews',

@@ -1,4 +1,4 @@
-// 과거 항목 한국어 백필 — 이미 저장된 행의 번역·상세를 소급 생성한다.
+// 과거 항목 한국어 백필: 이미 저장된 행의 번역·상세를 소급 생성한다.
 //
 // 왜 필요한가: run.mjs는 24h 수집 창의 신규 후보만 처리하고, getPickedItemKeys가
 // 과거 픽을 후보에서 오히려 제외한다. 따라서 LLM 키를 뒤늦게 설정해도 과거 행은
@@ -79,15 +79,15 @@ export async function runBackfill(opts) {
           detailSummary: d.summary,
           detailBlog: d.blog,
         });
-        console.log(`  [${i + 1}/${targets.length}] ${label} — `
+        console.log(`  [${i + 1}/${targets.length}] ${label}: `
           + `번역 ${gotTranslation ? 'O' : '-'} / 상세 ${gotDetail ? 'O' : '-'}`
           + `${d.usedFullText ? ' (전문)' : ''}`);
       } catch (err) {
         skipped++;
-        console.error(`  [${i + 1}/${targets.length}] ${label} — 실패: ${err.message}`);
+        console.error(`  [${i + 1}/${targets.length}] ${label} 실패: ${err.message}`);
       }
     }
-    console.log(`[backfill] 완료 — 번역 ${translated} / 상세 ${detailed} / 스킵 ${skipped}`);
+    console.log(`[backfill] 완료: 번역 ${translated} / 상세 ${detailed} / 스킵 ${skipped}`);
     return { total: targets.length, translated, detailed, skipped };
   } finally {
     db.close();

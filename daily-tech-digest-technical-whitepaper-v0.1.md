@@ -1,8 +1,8 @@
-# (가칭) 데일리 테크·사이언스 다이제스트 — 기술 백서 (Technical Whitepaper)
+# (가칭) 데일리 테크·사이언스 다이제스트: 기술 백서 (Technical Whitepaper)
 
 | | |
 |---|---|
-| 프로젝트 | (가칭) 데일리 테크·사이언스 다이제스트 — 해외/국내 5개 소스 한국어 큐레이션 |
+| 프로젝트 | (가칭) 데일리 테크·사이언스 다이제스트: 해외/국내 5개 소스 한국어 큐레이션 |
 | 문서 버전 | v0.1 (draft) |
 | 상태 | 소스별 접근 방식 조사 완료, 선별·중복제거·번역·저장 파이프라인 설계 초안 |
 | 범위 | Hacker News · GeekNews · arXiv · Phys.org · TechXplore, 소스당 1건/일(재분배 규칙 포함) 수집 후 한국어 변환·게시 |
@@ -14,7 +14,7 @@
 
 프로젝트의 핵심 난이도는 소스가 이질적이라는 점에 있다. 5개 소스는 콘텐츠 성격(UGC 투표형 / 학술 API / 편집형 저널리즘), 접근 수단(공식 API / RSS / 비공식), 언어(영어 4 + 한국어 1), 갱신 패턴(매일 / 주중만)이 전부 다르다. 이 문서의 모든 설계는 이 이질성을 흡수하는 공통 어댑터 인터페이스를 축으로 한다.
 
-**"오늘" 정의.** 소스별 타임존이 제각각(미국 동부 3곳, 한국 1곳, 국제 1곳)이라 특정 시간대의 캘린더 일(day) 경계를 억지로 맞추지 않는다. 대신 배치 실행 시점 기준 **직전 24시간(rolling 24h)** 을 수집 창으로 정의한다. 배치는 매일 1회 09:00 KST(=00:00 UTC) 실행을 기본값으로 제안한다 — 미국 소스의 전날 낮~저녁 활동과 GeekNews의 새벽 누적분이 함께 창에 들어오는 시간대다.
+**"오늘" 정의.** 소스별 타임존이 제각각(미국 동부 3곳, 한국 1곳, 국제 1곳)이라 특정 시간대의 캘린더 일(day) 경계를 억지로 맞추지 않는다. 대신 배치 실행 시점 기준 **직전 24시간(rolling 24h)** 을 수집 창으로 정의한다. 배치는 매일 1회 09:00 KST(=00:00 UTC) 실행을 기본값으로 제안한다. 미국 소스의 전날 낮~저녁 활동과 GeekNews의 새벽 누적분이 함께 창에 들어오는 시간대다.
 
 **"최신 + 인기" 결합 기준.** 단순 최신순이 아니라 "수집 창 내 게시 항목 중 인기 신호 상위"를 뽑는다. 인기 신호는 소스마다 성격이 달라 아래처럼 고정한다.
 
@@ -26,7 +26,7 @@
 | Phys.org | 수집 창 내 게시 | Spotlight 피드 포함 여부 | 전체 피드 상위 N건 |
 | TechXplore | 수집 창 내 게시 | Spotlight 피드 포함 여부(추정) | 전체 피드 상위 N건 |
 
-**재분배 규칙(요건 그대로 반영).** 특정 소스가 수집 창 내 후보 0건이면 해당 슬롯을 비우고, 그날 후보 2건 이상인 소스에서 순위 하위로 추가 선정해 채운다. 단일 소스가 하루 3건을 넘지 않도록 상한을 둔다(편중 방지). 전체 소스가 동시에 0건인 날이 없다고 가정하지 않는다 — 극단적으로 총량이 5건 미만인 날은 정상 동작으로 허용한다.
+**재분배 규칙(요건 그대로 반영).** 특정 소스가 수집 창 내 후보 0건이면 해당 슬롯을 비우고, 그날 후보 2건 이상인 소스에서 순위 하위로 추가 선정해 채운다. 단일 소스가 하루 3건을 넘지 않도록 상한을 둔다(편중 방지). 전체 소스가 동시에 0건인 날이 없다고 가정하지 않는다. 극단적으로 총량이 5건 미만인 날은 정상 동작으로 허용한다.
 
 arXiv는 미국 동부시간 기준 일~목요일만 신규 발표하며 **금·토요일엔 아나운스가 없다**(KST로는 대략 토·일요일과 겹침). 재분배 규칙이 실제로 발동하는 가장 빈번한 케이스로 예상된다.
 
@@ -40,7 +40,7 @@ arXiv는 미국 동부시간 기준 일~목요일만 신규 발표하며 **금·
 
 ```mermaid
 flowchart LR
-  subgraph collect["수집 — 사이트별 어댑터"]
+  subgraph collect["수집: 사이트별 어댑터"]
     HN["Hacker News<br/>Algolia API"]
     GN["GeekNews<br/>RSS + 홈페이지"]
     AX["arXiv<br/>Atom API + HF Daily Papers"]
@@ -56,7 +56,7 @@ flowchart LR
   API --> WEB["웹 프론트엔드"]
 ```
 
-각 단계는 독립 실행 가능한 순수 함수에 가깝게 설계한다 — 특정 소스 어댑터가 실패해도 나머지 파이프라인은 계속 진행되어야 한다(§9 리스크 참조).
+각 단계는 독립 실행 가능한 순수 함수에 가깝게 설계한다. 특정 소스 어댑터가 실패해도 나머지 파이프라인은 계속 진행되어야 한다(§9 리스크 참조).
 
 ---
 
@@ -67,7 +67,7 @@ flowchart LR
 | 소스 | 접근 방식 | 인증 | 공식성 | 상업적 이용 |
 |---|---|---|---|---|
 | Hacker News | Algolia HN Search API | 불필요 | Algolia 운영, HN 데이터 공식 미러 | 명시적 제한 조항 확인 안 됨 |
-| GeekNews | RSS(news.hada.io/rss/news) + 홈페이지 | 불필요 | RSS는 공식 제공 기능 | 불명확 — 대량 이용 시 사전 문의 권장 |
+| GeekNews | RSS(news.hada.io/rss/news) + 홈페이지 | 불필요 | RSS는 공식 제공 기능 | 불명확: 대량 이용 시 사전 문의 권장 |
 | arXiv | Atom API(export.arxiv.org) | 불필요 | 공식 | 메타데이터/초록 수준 통상 허용, 본문은 저자 라이선스 별도 |
 | Phys.org | RSS(전체 + Spotlight) | 불필요 | 공식, 상업적 이용 명시 허용 | **허용**(헤드라인 변경 금지, 출처 표기 의무) |
 | TechXplore | RSS(전체 + Spotlight 추정) | 불필요 | 공식, Phys.org와 동일 정책 | **허용**(동일 조건) |
@@ -84,37 +84,37 @@ const { hits } = await (await fetch(url)).json();
 // hits[0]가 인기 1순위 후보. 필드: objectID, title, url, points, num_comments, created_at
 ```
 
-`search_by_date`(시간순)와 `search`(관련도순 — query 없이 tags+numericFilters만 넣으면 사실상 points 랭킹)를 구분해서 쓴다. 이 프로젝트는 후자만으로 "최신+인기"가 한 번에 해결된다.
+`search_by_date`(시간순)와 `search`(관련도순, query 없이 tags+numericFilters만 넣으면 사실상 points 랭킹)를 구분해서 쓴다. 이 프로젝트는 후자만으로 "최신+인기"가 한 번에 해결된다.
 
 ### 2.3 GeekNews
 
-정식 API는 없으나 공식 RSS를 제공한다. RSS는 **시간순(최신)** 이며, 사이트 스스로 "홈페이지는 투표로 순위가 바뀌므로 RSS와 다를 수 있다"고 명시한다 — 즉 인기 신호는 RSS에 없다.
+정식 API는 없으나 공식 RSS를 제공한다. RSS는 **시간순(최신)** 이며, 사이트 스스로 "홈페이지는 투표로 순위가 바뀌므로 RSS와 다를 수 있다"고 명시한다. 즉 인기 신호는 RSS에 없다.
 
 ```javascript
-// 최신 후보 — 공식 RSS
+// 최신 후보: 공식 RSS
 const xml = await (await fetch('https://news.hada.io/rss/news')).text();
 // rss-parser 등으로 title/link/pubDate/description 파싱, 24h 창으로 필터
 
-// 인기 보정 — 홈페이지(news.hada.io) 경량 스크레이핑
+// 인기 보정: 홈페이지(news.hada.io) 경량 스크레이핑
 // 로그인 없이 열람 가능한 공개 페이지. robots.txt 확인 후
 // 요청 간격 최소 수 초, User-Agent 명시, 캐싱으로 재요청 최소화
 ```
 
 GeekNews는 2019년부터 매일 빠짐없이 갱신되므로 이 소스가 재분배 트리거가 될 가능성은 낮다. 운영사(하다 스튜디오)가 제휴 문의에 열려 있다고 명시하므로 대량/상업적 이용 시 contact@hada.io로 사전 협의를 권장한다.
 
-GeekNews 게시물 중 상당수가 원래 HN 등 해외 소스를 인용한다 — 이 프로젝트에서 **HN↔GeekNews 중복이 가장 빈번한 케이스**로 예상된다(§3.2).
+GeekNews 게시물 중 상당수가 원래 HN 등 해외 소스를 인용한다. 이 프로젝트에서 **HN↔GeekNews 중복이 가장 빈번한 케이스**로 예상된다(§3.2).
 
 ### 2.4 arXiv
 
-공식 Atom API. 카테고리 필터로 관심 분야를 좁힌다 — JTechpedia의 AI/엔지니어링 성향에 맞춰 cs.AI/cs.LG/cs.CL/cs.RO 등을 기본값으로 제안한다(조정 가능).
+공식 Atom API. 카테고리 필터로 관심 분야를 좁힌다. JTechpedia의 AI/엔지니어링 성향에 맞춰 cs.AI/cs.LG/cs.CL/cs.RO 등을 기본값으로 제안한다(조정 가능).
 
 ```javascript
 // 최신 후보
 const cats = 'cat:cs.AI+OR+cat:cs.LG+OR+cat:cs.CL+OR+cat:cs.RO+OR+cat:cs.CV';
 const url = `http://export.arxiv.org/api/query?search_query=${cats}&sortBy=submittedDate&sortOrder=descending&max_results=50`;
-// User-Agent 헤더 필수, 요청 간 최소 3초 간격 (429 발생 시 지수 백오프 — §9)
+// User-Agent 헤더 필수, 요청 간 최소 3초 간격 (429 발생 시 지수 백오프, §9)
 
-// 인기 후보 — Hugging Face Daily Papers (arXiv 논문에 대한 커뮤니티 업보트)
+// 인기 후보: Hugging Face Daily Papers (arXiv 논문에 대한 커뮤니티 업보트)
 const hf = await fetch(`https://huggingface.co/api/daily_papers?date=${todayISO}&limit=20`);
 ```
 
@@ -127,14 +127,14 @@ arXiv는 미국 동부시간 일~목요일만 신규 발표한다. 금·토(KST 
 공식 RSS. **개인·상업적 이용 모두 무료로 명시 허용**되며, 조건은 헤드라인/링크 변경 금지와 출처 표기 의무뿐이다(phys.org/feeds/ 자체 약관 확인).
 
 ```javascript
-// 최신 — 전체 기사 피드
+// 최신: 전체 기사 피드
 const all = await fetch('https://phys.org/rss-feed/');
-// 인기/주목 — 에디터 선별 Spotlight 피드
+// 인기/주목: 에디터 선별 Spotlight 피드
 const spotlight = await fetch('https://phys.org/rss-feed/spotlight/');
 // ↑ 슬러그 추정치. 정확한 URL은 구현 시 phys.org/feeds/ 페이지에서 재확인 필요
 ```
 
-Spotlight 피드는 Phys.org가 편집자 판단으로 선별하는 "주목 기사" 트랙이다 — 사용자 투표가 없는 저널리즘 매체에서 이 프로젝트의 "인기" 정의로 가장 적합한 대안 신호다.
+Spotlight 피드는 Phys.org가 편집자 판단으로 선별하는 "주목 기사" 트랙이다. 사용자 투표가 없는 저널리즘 매체에서 이 프로젝트의 "인기" 정의로 가장 적합한 대안 신호다.
 
 ### 2.6 TechXplore
 
@@ -166,15 +166,15 @@ const Candidate = {
 };
 ```
 
-### 3.2 중복 제거 — 우선순위 4단계
+### 3.2 중복 제거: 우선순위 4단계
 
 ```javascript
 function findDuplicate(candidate, alreadyPicked) {
   for (const picked of alreadyPicked) {
-    // 1차: 외부 링크 정확 일치(정규화 후) — HN↔GeekNews 케이스에 가장 유효
+    // 1차: 외부 링크 정확 일치(정규화 후) - HN↔GeekNews 케이스에 가장 유효
     if (normalizeUrl(candidate.url) === normalizeUrl(picked.url)) return picked;
 
-    // 2차: arXiv ID 일치 — arXiv 자체 중복에 한정(타 소스는 보통 ID 미기재)
+    // 2차: arXiv ID 일치 - arXiv 자체 중복에 한정(타 소스는 보통 ID 미기재)
     const a = extractArxivId(candidate.url), b = extractArxivId(picked.url);
     if (a && b && a === b) return picked;
 
@@ -187,7 +187,7 @@ function findDuplicate(candidate, alreadyPicked) {
 }
 ```
 
-4차(애매 구간 0.3~0.6)는 Claude Haiku 4.5로 "같은 소식인지" 이진 분류한다 — 건당 수백 토큰 수준이라 비용은 무시할 만하다(§4.2). arXiv 논문이 Phys.org/TechXplore 기사로 다뤄지는 경우는 기사 본문에 arXiv ID가 잘 남지 않으므로 1·2차로 못 잡고 3·4차에 의존하는 케이스로 예상해야 한다.
+4차(애매 구간 0.3~0.6)는 Claude Haiku 4.5로 "같은 소식인지" 이진 분류한다. 건당 수백 토큰 수준이라 비용은 무시할 만하다(§4.2). arXiv 논문이 Phys.org/TechXplore 기사로 다뤄지는 경우는 기사 본문에 arXiv ID가 잘 남지 않으므로 1·2차로 못 잡고 3·4차에 의존하는 케이스로 예상해야 한다.
 
 ### 3.3 선별 및 재분배
 
@@ -228,7 +228,7 @@ function selectDaily(candidatesBySource) {
     if (remaining === 0) break;
   }
 
-  return picks;  // remaining > 0로 끝나면 그날 총량이 5건 미만 — 정상 동작
+  return picks;  // remaining > 0로 끝나면 그날 총량이 5건 미만: 정상 동작
 }
 ```
 
@@ -269,8 +269,8 @@ const res = await fetch('https://api.anthropic.com/v1/messages', {
 스키마 정의는 `src/db/schema.sql`이 단일 정본이다. 이 문서에 SQL을 중복해 두었더니
 실제 스키마만 앞서가면서(`rank`·`detail_*`·`backfilled_at` 추가) 서로 어긋나기만 했다.
 
-- `daily_picks` — 날짜별 선별 결과. `UNIQUE(source, source_item_id)`가 과거 항목의 재게재를 막는다.
-- `dedup_log` — 어느 후보를 어떤 방법(`url` | `arxiv_id` | `jaccard` | `llm`)으로 묶었는지의 감사 기록.
+- `daily_picks`: 날짜별 선별 결과. `UNIQUE(source, source_item_id)`가 과거 항목의 재게재를 막는다.
+- `dedup_log`: 어느 후보를 어떤 방법(`url` | `arxiv_id` | `jaccard` | `llm`)으로 묶었는지의 감사 기록.
 
 단일 사용자·일 5~8건 규모에는 SQLite 단일 파일로 충분하다.
 컬럼 추가는 `openDb()`의 `migrate()`가 멱등적으로 처리한다.

@@ -1,4 +1,4 @@
-// RSS(Atom 1.0) · JSON Feed 1.1 생성 — 백서 비범위였던 "알림 채널"의 정적 해법
+// RSS(Atom 1.0) · JSON Feed 1.1 생성: 백서 비범위였던 "알림 채널"의 정적 해법
 //
 // 구독자 DB·발송 서버 없이 정적 파일 2개만 추가한다. 각자의 RSS 리더·Slack RSS 앱·
 // Discord 웹훅이 폴링하므로 운영 부담이 0이다.
@@ -16,7 +16,7 @@ const esc = s => String(s ?? '')
   .replaceAll('&', '&amp;').replaceAll('<', '&lt;').replaceAll('>', '&gt;')
   .replaceAll('"', '&quot;').replaceAll("'", '&apos;');
 
-/** 항목의 표시 제목/요약 — 번역본이 있으면 그것을, 없으면 원문을 */
+/** 항목의 표시 제목/요약: 번역본이 있으면 그것을, 없으면 원문을 */
 function view(p) {
   const title = p.title_ko || p.title_original || '';
   const summary = p.detail_summary || p.summary_ko || p.summary_original || '';

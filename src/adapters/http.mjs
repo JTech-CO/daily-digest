@@ -1,4 +1,4 @@
-// 어댑터 공용 HTTP 헬퍼 — 소스·URL 컨텍스트를 포함한 에러, 선택적 재시도(지수 백오프)
+// 어댑터 공용 HTTP 헬퍼: 소스·URL 컨텍스트를 포함한 에러, 선택적 재시도(지수 백오프)
 //
 // 5개 어댑터가 병렬로 돌 때(§1) 어느 소스의 어느 요청이 죽었는지
 // 로그만으로 식별 가능해야 한다. arXiv 429(§9)는 retries 옵션으로 흡수한다.
@@ -88,7 +88,7 @@ export async function fetchJson(source, url, options = {}) {
 const NAMED_ENTITIES = { amp: '&', lt: '<', gt: '>', quot: '"', apos: "'", nbsp: ' ' };
 
 /**
- * HTML 엔티티 디코딩 — 이름 엔티티와 숫자 참조(&#39; &#x2F; 등)를 모두 처리한다.
+ * HTML 엔티티 디코딩: 이름 엔티티와 숫자 참조(&#39; &#x2F; 등)를 모두 처리한다.
  * HN story_text는 '/'까지 &#x2F;로 escape해 오므로 16진 참조 처리가 필수다.
  * 한 번만 훑기 때문에 &amp;lt;는 &lt;로 남는다(이중 디코딩 방지).
  */
@@ -111,7 +111,7 @@ export function decodeEntities(s) {
 export function htmlToText(html) {
   if (typeof html !== 'string' || html === '') return '';
   let text = decodeEntities(stripTags(html));
-  // 디코딩하고 나서야 드러나는 마크업이 있다 — GeekNews는 본문의 <a>를 &lt;a&gt;로 실어 보낸다.
+  // 디코딩하고 나서야 드러나는 마크업이 있다. GeekNews는 본문의 <a>를 &lt;a&gt;로 실어 보낸다.
   // 여기서 한 번 더 걷어내되, 엔티티는 다시 풀지 않는다(이중 디코딩 방지).
   if (LOOKS_LIKE_HTML.test(text)) text = stripTags(text);
   return text
@@ -126,7 +126,7 @@ export function htmlToText(html) {
  *
  * 이미 평문인 필드(rss-parser contentSnippet 등)에 쓴다. 그런 필드에는 'a < b, c > d'나
  * 'lab | up >/conf'처럼 꺾쇠가 그냥 들어 있을 수 있어 무조건 태그를 걷어내면 본문이 잘린다.
- * 반대로 소스가 확실히 HTML을 주는 필드(HN story_text 등)에는 htmlToText를 바로 쓴다 —
+ * 반대로 소스가 확실히 HTML을 주는 필드(HN story_text 등)에는 htmlToText를 바로 쓴다. 
  * 거기선 평문 '<'가 &lt;로 와 있어 걷어낼 태그와 구분된다.
  */
 export function stripHtmlIfAny(text) {
@@ -134,7 +134,7 @@ export function stripHtmlIfAny(text) {
   return LOOKS_LIKE_HTML.test(text) ? htmlToText(text) : text;
 }
 
-// 실제 태그처럼 보이는 조각(닫는 '>'가 잘려나간 것 포함 — 소스가 본문을 중간에 자르기도 한다).
+// 실제 태그처럼 보이는 조각(닫는 '>'가 잘려나간 것 포함, 소스가 본문을 중간에 자르기도 한다).
 const LOOKS_LIKE_HTML =
   /<\/?(a|p|br|div|span|img|ul|ol|li|pre|code|em|strong|b|i|h[1-6]|blockquote|table)\b[^>]*>?/i;
 

@@ -1,4 +1,4 @@
-// 4단계 dedup 검증 — 인위적 중복 케이스 테스트셋 (M2 DoD, 기술 백서 §3.2)
+// 4단계 dedup 검증: 인위적 중복 케이스 테스트셋 (M2 DoD, 기술 백서 §3.2)
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import {

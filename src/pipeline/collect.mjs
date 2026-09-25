@@ -33,7 +33,7 @@ export async function collectAll({ windowHours = 24, adapters = ADAPTERS } = {})
       candidatesBySource[source] = [];
       continue;
     }
-    // 스키마 위반도 해당 소스만 실패로 격리한다(§1) — 한 소스 때문에 전체 배치가 죽지 않도록
+    // 스키마 위반도 해당 소스만 실패로 격리한다(§1): 한 소스 때문에 전체 배치가 죽지 않도록
     try {
       assertCandidates(result.value);
       candidatesBySource[source] = result.value;

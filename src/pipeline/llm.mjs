@@ -2,7 +2,7 @@
 //
 // Anthropic / OpenAI / Grok(xAI) / Gemini 중 API 키가 설정된 프로바이더를 자동 선택한다.
 // 각 프로바이더의 "최상위이면서 빠른" 모델을 기본값으로 쓰되 env로 override 가능:
-//   Anthropic  claude-sonnet-5     (ANTHROPIC_MODEL) — Opus 4.8도 사용 가능
+//   Anthropic  claude-sonnet-5     (ANTHROPIC_MODEL): Opus 4.8도 사용 가능
 //   OpenAI     gpt-5.5             (OPENAI_MODEL)
 //   Grok(xAI)  grok-4.3           (XAI_MODEL)
 //   Gemini     gemini-3.5-flash   (GEMINI_MODEL)
@@ -152,7 +152,7 @@ export async function askLlmJSON({ system, user, maxTokens = 600, fetchImpl = fe
 
 /**
  * 4차 dedup용 "같은 소식인가" 이진 분류기(§3.2).
- * 키가 없으면 null — 호출부는 애매 구간을 비중복으로 처리한다.
+ * 키가 없으면 null: 호출부는 애매 구간을 비중복으로 처리한다.
  * @returns {null | ((a: object, b: object) => Promise<boolean>)}
  */
 export function makeLlmPairClassifier({ fetchImpl = fetch } = {}) {

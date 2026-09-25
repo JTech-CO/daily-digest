@@ -70,7 +70,7 @@ test('회귀: 기게시 제외가 없으면 과거 날짜 항목이 유실된다
   savePicks(db, { pickDate: '2026-08-01', items: [saveItem('arxiv', 'P1'), saveItem('arxiv', 'P2')] });
   assert.equal(getPicksByDate(db, '2026-08-01').length, 2);
 
-  // 같은 항목을 다음 날 저장하면 08-01에서 빠진다 — 그래서 선별 단계에서 막아야 한다
+  // 같은 항목을 다음 날 저장하면 08-01에서 빠진다. 그래서 선별 단계에서 막아야 한다
   savePicks(db, { pickDate: '2026-08-02', items: [saveItem('arxiv', 'P1')] });
   assert.equal(getPicksByDate(db, '2026-08-01').length, 1);
   assert.equal(getPicksByDate(db, '2026-08-02').length, 1);

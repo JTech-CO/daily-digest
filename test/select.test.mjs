@@ -80,7 +80,7 @@ test('총량 5건 미만 허용: 전 소스가 후보 희소하면 unfilled>0로
   const { order, unfilled, deficits } = await selectDaily(input);
   assert.equal(order.length, 2);
   assert.equal(deficits.length, 3);
-  assert.equal(unfilled, 3); // 채울 여분이 없음 — 예외 아니라 정상
+  assert.equal(unfilled, 3); // 채울 여분이 없음. 예외 아니라 정상
 });
 
 test('재분배 중에도 dedup 적용: 도너 하위 후보가 기존 픽과 중복이면 건너뛴다', async () => {
