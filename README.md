@@ -63,8 +63,9 @@ npm run serve    # 로컬 미리보기 → http://localhost:4173
 `npm start`는 실행 후 인베리언트를 검사해 게시 건수 부족이나 "키가 있는데 번역 0건" 같은
 무증상 실패를 비-0 종료로 드러냅니다.
 
-> **배포**: `git push` 후 GitHub Pages를 켜면 `.github/workflows/daily.yml`이 매일 09:00 KST에
-> 파이프라인을 실행하고 사이트를 갱신합니다. LLM 키는 리포지토리 Secret으로 주입합니다.
+> **배포**: GitHub Pages를 켜면 `daily.yml`이 매일 09:00 KST에 수집부터 돌려 사이트를 갱신하고,
+> `web/`·`images/`·`src/web/`를 고쳐 푸시하면 `deploy.yml`이 수집 없이 화면만 바로 배포합니다.
+> LLM 키는 리포지토리 Secret으로 주입합니다.
 
 ## 4. 폴더 구조 (Structure)
 

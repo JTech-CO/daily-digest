@@ -61,6 +61,10 @@ jobs:
     permissions:
       pages: write
       id-token: write
+    # deploy.yml의 배포 잡과 같은 큐 — Pages 배포가 겹치지 않도록
+    concurrency:
+      group: pages
+      cancel-in-progress: false
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
