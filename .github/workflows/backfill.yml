@@ -11,7 +11,7 @@ on:
       limit:
         description: '이번 실행에서 처리할 건수'
         type: choice
-        options: ['10', '20', '30', '50']
+        options: ['10', '20', '30', '50', '100']
         default: '30'
       dry:
         description: '대상만 출력하고 쓰지 않음'
@@ -61,8 +61,10 @@ jobs:
           [ "$RETRY" = "true" ] && args="$args --retry-empty"
           npm run backfill -- $args
 
+      # 백필이 중간에 죽어도 그때까지 DB에 쓴 건 살린다. 항목당 LLM 호출이 2~3회라
+      # 한 배치를 통째로 버리면 그만큼 다시 과금된다.
       - name: Commit database
-        if: ${{ !inputs.dry }}
+        if: ${{ !inputs.dry && !cancelled() }}
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
