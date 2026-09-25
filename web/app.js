@@ -61,7 +61,7 @@ function signalLabel(pick) {
   return '에디터 선정';
 }
 
-// ── 카드 렌더 (§4.1, §9) ───────────────────────────────────────
+// ── 카드 렌더 (§4.1) ─────────────────────────────────────────
 function renderPick(pick, index) {
   const article = el('article', 'pick');
   article.style.setProperty('--cat', catVar(pick.source));

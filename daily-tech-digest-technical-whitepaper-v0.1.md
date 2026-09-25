@@ -266,38 +266,14 @@ const res = await fetch('https://api.anthropic.com/v1/messages', {
 
 ## 5. 데이터 스키마
 
-```sql
-CREATE TABLE daily_picks (
-  id INTEGER PRIMARY KEY AUTOINCREMENT,
-  pick_date TEXT NOT NULL,          -- 배치 실행일(KST, 'YYYY-MM-DD')
-  source TEXT NOT NULL,             -- hackernews | geeknews | arxiv | physorg | techxplore
-  source_item_id TEXT NOT NULL,
-  title_original TEXT NOT NULL,
-  title_ko TEXT NOT NULL,
-  summary_original TEXT,
-  summary_ko TEXT,
-  url TEXT NOT NULL,
-  popularity_signal INTEGER,        -- points/upvotes 등 (없으면 NULL)
-  published_at TEXT,
-  selection_reason TEXT NOT NULL,   -- primary | redistributed
-  is_translated INTEGER NOT NULL,   -- GeekNews 정제-only 항목은 0
-  created_at TEXT DEFAULT (datetime('now')),
-  UNIQUE(source, source_item_id)
-);
+스키마 정의는 `src/db/schema.sql`이 단일 정본이다. 이 문서에 SQL을 중복해 두었더니
+실제 스키마만 앞서가면서(`rank`·`detail_*`·`backfilled_at` 추가) 서로 어긋나기만 했다.
 
-CREATE TABLE dedup_log (
-  id INTEGER PRIMARY KEY AUTOINCREMENT,
-  pick_date TEXT NOT NULL,
-  kept_source TEXT NOT NULL,
-  kept_item_id TEXT NOT NULL,
-  dropped_source TEXT NOT NULL,
-  dropped_title TEXT NOT NULL,
-  method TEXT NOT NULL,             -- url | arxiv_id | jaccard | llm
-  similarity_score REAL
-);
-```
+- `daily_picks` — 날짜별 선별 결과. `UNIQUE(source, source_item_id)`가 과거 항목의 재게재를 막는다.
+- `dedup_log` — 어느 후보를 어떤 방법(`url` | `arxiv_id` | `jaccard` | `llm`)으로 묶었는지의 감사 기록.
 
-단일 사용자·일 5~8건 규모에는 SQLite 단일 파일로 충분하다(CommentVault와 동일 패턴). 마이그레이션은 스크립트로 관리한다.
+단일 사용자·일 5~8건 규모에는 SQLite 단일 파일로 충분하다.
+컬럼 추가는 `openDb()`의 `migrate()`가 멱등적으로 처리한다.
 
 ---
 
@@ -355,7 +331,10 @@ on:
 
 ---
 
-## 10. 구현 로드맵
+## 10. 구현 로드맵 (M0~M6 완료)
+
+계획 자체는 끝난 단계다. 다만 테스트·소스 주석이 "M3 DoD"처럼 이 이름을 계속
+인용하므로 용어 정의로서 남겨둔다.
 
 | Phase | 범위 | 완료 기준(DoD 성격) |
 |---|---|---|
@@ -366,31 +345,3 @@ on:
 | M4 | 스케줄링/저장 | GitHub Actions 자동 실행, SQLite 적재 확인 |
 | M5 | 프론트엔드 최소 뷰 | 날짜별 아카이브 노출 |
 | M6 | 모니터링/폴백 검증 | Spotlight 슬러그 등 §9 리스크 항목 실측 재확인 |
-
----
-
-## 부록 A. 초기 디렉토리 구조 제안
-
-```
-daily-digest/
-├── src/
-│   ├── adapters/
-│   │   ├── hackernews.mjs
-│   │   ├── geeknews.mjs
-│   │   ├── arxiv.mjs
-│   │   ├── physorg.mjs
-│   │   └── techxplore.mjs
-│   ├── pipeline/
-│   │   ├── normalize.mjs
-│   │   ├── dedup.mjs
-│   │   ├── select.mjs
-│   │   └── translate.mjs
-│   ├── db/
-│   │   ├── schema.sql
-│   │   └── index.mjs
-│   └── index.mjs
-├── .github/workflows/daily.yml
-└── package.json
-```
-
-이 구조는 다음 단계(HARNESS.md / Schema-Hub Pack 인스턴스화)로 그대로 넘길 수 있는 수준으로 잡았다.
