@@ -11,7 +11,7 @@
 // GeekNews 텍스트는 한국어(번역 대상 아님 — M3에서 정제만, §0).
 
 import Parser from 'rss-parser';
-import { fetchText, decodeEntities } from './http.mjs';
+import { fetchText, htmlToText, stripHtmlIfAny } from './http.mjs';
 
 export const SOURCE = 'geeknews';
 
@@ -42,7 +42,7 @@ export async function fetchCandidates({ windowHours = 24, limit = 20, fetchImpl 
       sourceItemId: extractTopicId(item.link ?? item.id ?? '') ?? String(item.link),
       title: (item.title ?? '').trim(),
       url: item.link ?? '',
-      summary: (item.contentSnippet ?? '').trim().slice(0, 500) || null,
+      summary: stripHtmlIfAny(item.contentSnippet ?? '').trim().slice(0, 500) || null,
       publishedAt: new Date(item.isoDate ?? item.pubDate).toISOString(),
       popularitySignal: null,
       isPopularPick: false, // RSS에는 인기 신호가 없다(§2.3)
@@ -73,10 +73,10 @@ export function parseHomepage(html) {
     out.push({
       source: SOURCE,
       sourceItemId: id,
-      title: decodeEntities(titleM[2]).trim(),
+      title: htmlToText(titleM[2]).trim(),
       // Ask GN 등 외부 링크가 없는 글은 상대경로(topic?id=) → 절대경로로
       url: /^https?:\/\//.test(rawUrl) ? rawUrl : new URL(rawUrl, HOME_URL).href,
-      summary: desc ? decodeEntities(desc).trim() : null,
+      summary: desc ? htmlToText(desc).trim() || null : null,
       publishedAt: new Date(Number(ts) * 1000).toISOString(),
       popularitySignal: points ? Number(points) : null,
       isPopularPick: true, // 홈페이지 노출 순서 자체가 투표 랭킹

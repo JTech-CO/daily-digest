@@ -4,6 +4,8 @@
 // 사실상 points+댓글 가중 랭킹이 되므로, "최신(수집 창 내) + 인기(상위)"가
 // 단 한 번의 호출로 해결된다. 인증 불필요.
 
+import { htmlToText } from './http.mjs';
+
 const API_BASE = 'https://hn.algolia.com/api/v1';
 
 export const SOURCE = 'hackernews';
@@ -58,8 +60,9 @@ export function toCandidate(hit) {
     title: hit.title ?? '',
     // Ask HN / Show HN 등 외부 링크가 없는 스토리는 HN 아이템 페이지로 대체
     url: hit.url || `https://news.ycombinator.com/item?id=${hit.objectID}`,
-    // HN 스토리에는 요약이 없다 — 셀프포스트의 본문(story_text)이 있으면 사용
-    summary: hit.story_text ?? null,
+    // HN 스토리에는 요약이 없다 — 셀프포스트의 본문(story_text)이 있으면 사용.
+    // story_text는 <a>/<p>와 &#x2F; 같은 HTML이라 그대로 두면 화면에 마크업이 노출된다.
+    summary: htmlToText(hit.story_text ?? '') || null,
     publishedAt: new Date(hit.created_at_i * 1000).toISOString(),
     // §0: HN 인기 신호는 points + 댓글수(Algolia relevance). 대표값으로 points 저장
     popularitySignal: hit.points ?? null,

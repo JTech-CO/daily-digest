@@ -13,6 +13,7 @@
     "serve": "node src/web/serve.mjs",
     "monitor": "node --env-file-if-exists=.env src/monitor.mjs",
     "backfill": "node --env-file-if-exists=.env src/pipeline/backfill.mjs",
+    "repair:html": "node src/pipeline/repair-html.mjs",
     "test": "node --test \"test/*.test.mjs\""
   },
   "dependencies": {

@@ -64,6 +64,7 @@ Hacker News · GeekNews · arXiv · Phys.org · TechXplore — 개발자·엔지
    npm run monitor                   # 소스 엔드포인트 헬스체크
    npm run backfill -- --dry         # 과거 항목 백필 대상 확인
    npm run backfill -- --limit=20    # 과거 항목 번역·상세 소급 생성(LLM 키 필요)
+   npm run repair:html -- --dry      # 저장된 본문에 남은 HTML 마크업 점검·정리
    ```
 
    `npm start`는 실행 후 인베리언트를 검사합니다 — 게시 건수 부족, "키가 있는데 번역 0건",
