@@ -1,0 +1,67 @@
+name: backfill
+
+# 과거 항목 한국어 백필. 수집은 하지 않고 이미 저장된 행의 번역·상세만 소급 생성한다.
+#
+# 항목당 LLM 호출이 2~3회라 한 번에 다 돌리면 비용과 시간이 크다. limit으로 나눠
+# 여러 번 실행하는 것을 전제로 하며, 처리한 행은 backfilled_at이 찍혀 재실행해도
+# 다시 과금되지 않는다(최신 날짜부터 처리).
+on:
+  workflow_dispatch:
+    inputs:
+      limit:
+        description: '이번 실행에서 처리할 건수'
+        type: choice
+        options: ['10', '20', '30', '50']
+        default: '30'
+      dry:
+        description: '대상만 출력하고 쓰지 않음'
+        type: boolean
+        default: false
+
+permissions:
+  contents: write          # 갱신된 DB를 커밋
+
+# daily.yml과 DB를 공유하므로 같은 큐에 둔다(동시 실행 시 푸시가 충돌한다)
+concurrency:
+  group: daily-digest
+  cancel-in-progress: false
+
+jobs:
+  backfill:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+
+      - run: npm ci
+
+      - name: Backfill
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          XAI_API_KEY: ${{ secrets.XAI_API_KEY }}
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          LLM_PROVIDER: ${{ vars.LLM_PROVIDER }}
+          # 입력은 셸에 직접 끼워넣지 않고 환경변수로 넘긴다
+          LIMIT: ${{ inputs.limit }}
+          DRY: ${{ inputs.dry }}
+        run: |
+          if [ "$DRY" = "true" ]; then
+            npm run backfill -- --limit="$LIMIT" --dry
+          else
+            npm run backfill -- --limit="$LIMIT"
+          fi
+
+      - name: Commit database
+        if: ${{ !inputs.dry }}
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add -f daily-digest.db
+          git diff --staged --quiet || git commit -m "chore: backfill $(date -u +%Y-%m-%d)"
+          git push
