@@ -4,94 +4,79 @@
 
 ## 1. 소개 (Introduction)
 
-Hacker News · GeekNews · arXiv · Phys.org · TechXplore — 개발자·엔지니어가 챙겨보는 다섯 소스를
-매일 일일이 훑어보긴 번거롭습니다. **daily-digest**는 이 소스들에서 **하루 소스당 1건**씩(어떤 소스가
-비면 다른 소스에서 보충) 가장 인기 있고 새로운 글을 자동으로 골라 **한국어로 번역·정리**해 한 페이지로
-보여주는 웹 애플리케이션입니다.
+Hacker News · GeekNews · arXiv · Phys.org · TechXplore를 매일 일일이 훑기는 번거롭습니다.
+**daily-digest**는 이 다섯 소스에서 **하루 소스당 1건**씩 가장 인기 있고 새로운 글을 자동으로 골라
+**한국어로 번역·정리**해 한 페이지로 보여줍니다. 매일 09:00 KST에 파이프라인이 돌고 결과는 정적
+사이트로 배포되므로, 읽는 쪽에서 할 일은 페이지를 여는 것뿐입니다.
 
-각 카드를 누르면 **원문 번역본 · 핵심 요약 · 기술 블로그 초안** 3구성의 상세 뷰가 열려, 읽고 넘기는 것을
-넘어 글을 정리하고 재가공하는 데까지 이어집니다.
+### 어디에 쓰나
 
-**주요 기능**
-- **자동 큐레이션**: 5개 소스 병렬 수집 → 4단계 중복 제거 → 소스당 1건 선별(결손 시 재분배).
-  과거에 실린 항목은 다시 뽑지 않아 매일 새로운 글만 올라옵니다.
-- **한국어 상세 뷰**: 카드 클릭 시 원문 번역본·핵심 요약·블로그 초안(파이프라인은 기사 **전문 기반** 생성).
-- **검색 · 소스 필터**: 제목·요약을 원문/번역 모두 대상으로 즉시 검색하고, 소스 칩으로 좁혀 봅니다.
-- **구독 피드**: `feed.xml`(Atom) · `feed.json`(JSON Feed)을 매일 함께 발행합니다.
-- **멀티 LLM 프로바이더**: Anthropic · OpenAI · Grok(xAI) · Gemini 중 설정된 키로 동작. 사이트 우측 상단
-  ⚙에서 본인 키를 직접 넣는 브라우저 생성(BYOK)도 지원.
-- **읽기 좋은 UI**: 다크/라이트 테마, 날짜별 아카이브, 소스별 색상 구분(단일 컬럼, 정보 밀도 중심).
-- **매일 자동화**: GitHub Actions로 매일 실행하고 GitHub Pages로 정적 배포.
+하루치가 **5건으로 고정**이라 몇 분이면 훑고 넘어갈 분량이 매일 쌓입니다.
+
+- **아침 기술 동향 브리핑** — 다섯 소스를 각각 열지 않고 한 페이지에서 끝냅니다.
+- **영어 소스 진입 장벽 낮추기** — arXiv 초록과 해외 기사를 한국어로 먼저 읽고, 볼 만하면 원문으로 갑니다.
+- **기술 블로그·뉴스레터 글감** — 카드를 누르면 **원문 번역본 · 핵심 요약 · 블로그 초안** 3구성이 열립니다.
+- **팀 공유·리더 구독** — `feed.xml`(Atom)·`feed.json`(JSON Feed)을 매일 발행해 RSS 리더나 Slack에 바로 겁니다.
+- **개인 아카이브** — 날짜별로 쌓인 기록을 원문·번역 양쪽으로 검색하고 소스 칩으로 좁혀 봅니다.
+- **직접 운영** — 포크해서 소스·LLM 프로바이더를 바꿔 자기만의 다이제스트로 돌립니다.
+
+### 어떻게 고르나
+
+5개 소스 병렬 수집 → 4단계 중복 제거 → 소스당 1건 선별(빈 소스는 다른 소스에서 보충). 한 소스가 죽어도
+나머지는 그대로 올라오고, 과거에 실린 항목은 다시 뽑지 않습니다. LLM 키는 선택이며(없으면 원문 그대로 게시)
+Anthropic · OpenAI · Grok(xAI) · Gemini를 지원합니다. 사이트 우측 상단 ⚙에서 본인 키로 직접 생성(BYOK)할 수도 있습니다.
 
 ## 2. 기술 스택 (Tech Stack)
 
-- **Frontend**: Vanilla JS (ES Modules), CSS (프레임워크 없음), Pretendard · JetBrains Mono
-- **Pipeline / Backend**: Node.js 22+ (ESM). 외부 의존성은 `rss-parser` 하나뿐
+- **Frontend**: Vanilla JS (ES Modules) · CSS — 프레임워크·빌드 단계 없음
+- **Pipeline**: Node.js 22+ (ESM), 외부 의존성은 `rss-parser` 하나뿐
 - **Database**: SQLite (Node 내장 `node:sqlite`, 단일 파일)
-- **LLM**: Anthropic · OpenAI · Grok(xAI) · Gemini (멀티 프로바이더, env로 선택)
-- **Automation / Deployment**: GitHub Actions (cron) · GitHub Pages (정적 호스팅)
+- **Automation**: GitHub Actions (cron) · GitHub Pages
 
 ## 3. 설치 및 실행 (Quick Start)
 
 **요구 사항**: Node.js 22 이상
 
-1. **설치 (Install)**
-   ```bash
-   git clone https://github.com/JTech-CO/daily-digest.git
-   cd daily-digest
-   npm install
-   ```
+```bash
+git clone https://github.com/JTech-CO/daily-digest.git
+cd daily-digest
+npm install
+```
 
-2. **환경 변수 (Environment)** — *선택*
-   `.env.example`을 `.env`로 복사하고 사용할 LLM 프로바이더 키를 하나 이상 입력합니다.
-   키가 없어도 파이프라인은 원문을 그대로 두고 동작합니다(번역·상세 생성만 생략).
-   ```bash
-   cp .env.example .env
-   # .env 예시 (하나만 채워도 됨)
-   # ANTHROPIC_API_KEY=sk-ant-...
-   # LLM_PROVIDER=anthropic
-   ```
+LLM 키를 쓰려면 `.env.example`을 `.env`로 복사해 하나 이상 채웁니다(생략 가능).
 
-3. **실행 (Run)**
-   ```bash
-   npm start        # 수집 → 중복제거 → 선별/재분배 → 번역 → SQLite 적재
-   npm run build    # DB → 정적 사이트(public/) 생성
-   npm run serve    # 로컬 미리보기 → http://localhost:4173
-   ```
-   그 밖에:
-   ```bash
-   npm test                          # 테스트
-   npm run monitor                   # 소스 엔드포인트 헬스체크
-   npm run backfill -- --dry         # 과거 항목 백필 대상 확인
-   npm run backfill -- --limit=20    # 과거 항목 번역·상세 소급 생성(LLM 키 필요)
-   npm run repair:html -- --dry      # 저장된 본문에 남은 HTML 마크업 점검·정리
-   ```
+```bash
+npm start        # 수집 → 중복제거 → 선별/재분배 → 번역 → SQLite 적재
+npm run build    # DB → 정적 사이트(public/) 생성
+npm run serve    # 로컬 미리보기 → http://localhost:4173
+```
 
-   `npm start`는 실행 후 인베리언트를 검사합니다 — 게시 건수 부족, "키가 있는데 번역 0건",
-   실패율 초과 등이 발견되면 비-0으로 종료해 CI가 실패로 표시합니다(무증상 실패 방지).
+그 밖에 `npm test`(테스트) · `npm run monitor`(엔드포인트 헬스체크) ·
+`npm run backfill -- --limit=20`(과거 항목 소급 번역, LLM 키 필요) ·
+`npm run repair:html -- --dry`(저장된 본문의 HTML 마크업 점검).
+
+`npm start`는 실행 후 인베리언트를 검사해 게시 건수 부족이나 "키가 있는데 번역 0건" 같은
+무증상 실패를 비-0 종료로 드러냅니다.
 
 > **배포**: `git push` 후 GitHub Pages를 켜면 `.github/workflows/daily.yml`이 매일 09:00 KST에
-> 파이프라인을 실행하고 사이트를 자동 갱신합니다. LLM 키는 리포지토리 Secret으로 주입합니다.
+> 파이프라인을 실행하고 사이트를 갱신합니다. LLM 키는 리포지토리 Secret으로 주입합니다.
 
 ## 4. 폴더 구조 (Structure)
 
 ```text
 daily-digest/
 ├── src/
-│   ├── adapters/     # 5개 소스 수집(HN·GeekNews·arXiv·Phys.org·TechXplore) + 공용 HTTP
-│   ├── pipeline/     # 수집·중복제거·선별·번역·상세생성·LLM·오케스트레이션
-│   ├── db/           # SQLite 스키마·저장(node:sqlite)
-│   ├── web/          # 정적 사이트 빌드 · 로컬 미리보기 서버
-│   ├── monitor.mjs   # 소스 엔드포인트 헬스체크
-│   └── index.mjs     # 파이프라인 실행 진입점
-├── web/              # 프론트엔드 소스(index.html · styles.css · app.js · llm.js)
-├── test/             # node:test 테스트 스위트
-├── .github/workflows/# 일일 파이프라인 + 주간 헬스체크
-└── .env.example      # 환경 변수 템플릿
+│   ├── adapters/   # 5개 소스 수집 + 공용 HTTP
+│   ├── pipeline/   # 중복제거·선별·번역·상세생성·LLM·오케스트레이션
+│   ├── db/         # SQLite 스키마·저장
+│   ├── web/        # 정적 사이트 빌드 · 미리보기 서버
+│   └── index.mjs   # 파이프라인 진입점 (monitor.mjs: 헬스체크)
+├── web/            # 프론트엔드(index.html · styles.css · app.js · llm.js)
+├── test/           # node:test 스위트
+└── .github/workflows/   # 일일 파이프라인 + 주간 헬스체크
 ```
 
 ## 5. 정보 (Info)
 
-- **License**: 개인 프로젝트. 각 기사의 저작권은 원 출처(Hacker News · GeekNews · arXiv ·
-  Phys.org · TechXplore)에 있으며, 본 서비스는 **요약·번역과 원문 링크**만 제공하고 전문을 재게시하지 않습니다.
-  Phys.org·TechXplore 항목은 출처 표기를 유지합니다. 
+개인 프로젝트입니다. 각 기사의 저작권은 원 출처에 있으며 본 서비스는 **요약·번역과 원문 링크**만
+제공하고 전문을 재게시하지 않습니다. Phys.org·TechXplore 항목은 출처 표기를 유지합니다.
