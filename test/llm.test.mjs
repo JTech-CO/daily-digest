@@ -1,7 +1,7 @@
 // 멀티 프로바이더 LLM 클라이언트 검증 (Anthropic/OpenAI/Grok/Gemini)
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { askLlmJSON, hasLlm, activeProviderInfo } from '../src/pipeline/llm.mjs';
+import { askLlmJSON, hasLlm, activeProviderInfo, parseLooseJson } from '../src/pipeline/llm.mjs';
 import { withEnv, withKey } from './helpers.mjs';
 
 // 요청을 가로채 URL/헤더/바디를 기록하고, 고정 응답을 돌려주는 mock
@@ -152,5 +152,49 @@ test('잘림: openai finish_reason=length도 감지', withEnv({ OPENAI_API_KEY: 
   await assert.rejects(
     () => askLlmJSON({ system: 's', user: 'u', fetchImpl: resOf(truncated) }),
     /잘렸/,
+  );
+}));
+
+// ── 느슨한 JSON 파싱 ───────────────────────────────────────────
+// 실제 백필에서 100건 중 7건이 파싱 실패로 버려졌다. 모델이 JSON만 내라고 해도
+// 펜스를 씌우거나 문자열 안에 날것 줄바꿈을 흘린다.
+
+test('느슨한 파싱: 평범한 JSON', () => {
+  assert.deepEqual(parseLooseJson('{"a":1}'), { a: 1 });
+});
+
+test('느슨한 파싱: 코드펜스로 감싼 경우', () => {
+  assert.deepEqual(parseLooseJson('```json\n{"a":1}\n```'), { a: 1 });
+  assert.deepEqual(parseLooseJson('```\n{"a":1}\n```'), { a: 1 });
+});
+
+test('느슨한 파싱: 닫는 펜스를 빠뜨려도 살린다', () => {
+  assert.deepEqual(parseLooseJson('```json\n{"a":1}'), { a: 1 });
+});
+
+test('느슨한 파싱: 앞뒤 잡담을 걷어낸다', () => {
+  assert.deepEqual(parseLooseJson('아래와 같습니다.\n{"a":1}\n이상입니다.'), { a: 1 });
+});
+
+test('느슨한 파싱: 문자열 안 날것 줄바꿈을 escape해 복구', () => {
+  const raw = '{"translation":"첫 문단\n\n둘째 문단\t끝","summary":"요약"}';
+  assert.deepEqual(parseLooseJson(raw), { translation: '첫 문단\n\n둘째 문단\t끝', summary: '요약' });
+});
+
+test('느슨한 파싱: 이미 escape된 \n은 건드리지 않는다', () => {
+  assert.deepEqual(parseLooseJson('{"t":"a\nb"}'), { t: 'a\nb' });
+});
+
+test('느슨한 파싱: 구조가 깨진 건 그대로 throw(호출부가 원문 폴백)', () => {
+  assert.throws(() => parseLooseJson('{"a":'));
+  assert.throws(() => parseLooseJson('완전히 딴소리'));
+});
+
+test('파싱 실패 메시지는 꼬리도 남긴다 — 깨진 곳은 대개 뒤쪽', withKey(async () => {
+  const long = 'x'.repeat(900);
+  const bad = { stop_reason: 'end_turn', content: [{ type: 'text', text: `{"t":"${long}` }] };
+  await assert.rejects(
+    () => askLlmJSON({ system: 's', user: 'u', fetchImpl: resOf(bad) }),
+    /생략/,
   );
 }));

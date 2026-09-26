@@ -151,12 +151,51 @@ export async function askLlmJSON({ system, user, maxTokens = 600, fetchImpl = fe
     throw new Error(`[llm:${p.name}] 응답이 maxTokens(${maxTokens})에서 잘렸습니다. 상한을 올리세요.`);
   }
   const text = p.extract(data);
-  const jsonText = text.match(/```(?:json)?\s*([\s\S]*?)```/)?.[1] ?? text;
   try {
-    return JSON.parse(jsonText.trim());
+    return parseLooseJson(text);
   } catch (cause) {
-    throw new Error(`[llm:${p.name}] JSON 파싱 실패: ${text.slice(0, 200)}`, { cause });
+    // 앞 200자만 찍으면 대개 멀쩡해 보인다 — 깨진 곳은 뒤쪽이라 꼬리도 함께 남긴다.
+    throw new Error(`[llm:${p.name}] JSON 파싱 실패: ${excerpt(text)}`, { cause });
   }
+}
+
+const excerpt = t => (t.length <= 500 ? t : `${t.slice(0, 300)} …(${t.length}자 중 생략)… ${t.slice(-200)}`);
+
+/**
+ * LLM이 돌려준 텍스트에서 JSON을 최대한 살려 파싱한다.
+ *
+ * 모델은 JSON만 내라고 해도 코드펜스로 감싸거나(닫는 펜스를 빠뜨리기도 한다) 앞뒤에
+ * 한 줄 덧붙이고, 긴 번역문을 넣을 때 문자열 안에 날것 줄바꿈을 흘린다. 그대로
+ * JSON.parse에 넘기면 멀쩡한 응답이 통째로 버려진다.
+ */
+export function parseLooseJson(text) {
+  let s = String(text ?? '').trim()
+    .replace(/^```(?:json)?[ \t]*\r?\n?/i, '')   // 여는 펜스(닫는 게 없어도 벗긴다)
+    .replace(/\r?\n?```$/, '');                  // 닫는 펜스
+  const open = s.indexOf('{');
+  const close = s.lastIndexOf('}');
+  if (open >= 0 && close > open) s = s.slice(open, close + 1);   // 앞뒤 잡담 제거
+
+  try {
+    return JSON.parse(s);
+  } catch {
+    return JSON.parse(escapeRawControls(s));    // 그래도 안 되면 throw — 호출부가 폴백한다
+  }
+}
+
+/** JSON 문자열 리터럴 안의 날것 제어문자를 escape한다(바깥은 건드리지 않는다). */
+function escapeRawControls(s) {
+  const ESCAPED = { '\n': '\\n', '\r': '\\r', '\t': '\\t' };
+  let out = '';
+  let inString = false;
+  let escaped = false;
+  for (const ch of s) {
+    if (escaped) { out += ch; escaped = false; continue; }
+    if (ch === '\\') { out += ch; escaped = true; continue; }
+    if (ch === '"') { inString = !inString; out += ch; continue; }
+    out += inString && ESCAPED[ch] ? ESCAPED[ch] : ch;
+  }
+  return out;
 }
 
 /**
