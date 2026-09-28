@@ -16,6 +16,8 @@ concurrency:
 jobs:
   digest:
     runs-on: ubuntu-latest
+    outputs:
+      pipeline_code: ${{ steps.pipeline.outputs.code }}
     steps:
       - uses: actions/checkout@v4
 
@@ -29,13 +31,29 @@ jobs:
       # 수집 → 중복제거 → 선별/재분배 → 번역 → SQLite 적재
       # LLM 키는 설정된 것 중 하나면 충분(§ README LLM 프로바이더 표). 선택은 LLM_PROVIDER로 고정 가능.
       - name: Run pipeline
+        id: pipeline
         env:
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
           XAI_API_KEY: ${{ secrets.XAI_API_KEY }}
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
           LLM_PROVIDER: ${{ vars.LLM_PROVIDER }}
-        run: npm start
+        run: |
+          set +e
+          npm start
+          code=$?
+          set -e
+          echo "code=$code" >> "$GITHUB_OUTPUT"
+          # 2 = 인베리언트 위반. 그날의 5건은 이미 DB에 들어갔고, 번역·상세가 없어도
+          # 원문으로 읽을 수 있다. 여기서 멈추면 수집한 것까지 버려지므로 게시는 계속하고
+          # 아래 guard 잡에서 실행을 빨갛게 표시한다.
+          if [ "$code" -ne 0 ] && [ "$code" -ne 2 ]; then
+            echo "::error::파이프라인이 종료 코드 $code 로 실패했습니다"
+            exit "$code"
+          fi
+          if [ "$code" -eq 2 ]; then
+            echo "::warning::인베리언트 위반. 게시는 계속하지만 번역/상세가 비었습니다"
+          fi
 
       # DB → 정적 사이트(public/) 재빌드
       - name: Build static site
@@ -71,3 +89,13 @@ jobs:
     steps:
       - id: deployment
         uses: actions/deploy-pages@v4
+
+  # 게시를 막지 않으면서도 문제를 놓치지 않도록, 배포가 끝난 뒤 실행을 실패로 표시한다.
+  guard:
+    needs: [digest, deploy]
+    if: ${{ always() && needs.digest.outputs.pipeline_code == '2' }}
+    runs-on: ubuntu-latest
+    steps:
+      - run: |
+          echo "::error::인베리언트 위반으로 실행을 실패로 표시합니다(게시 자체는 완료). 로그의 '점검 결과'를 보세요."
+          exit 1
