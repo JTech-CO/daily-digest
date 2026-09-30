@@ -35,14 +35,19 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 120
     steps:
-      - uses: actions/checkout@v4
+      # 토큰을 .git/config에 남기지 않는다. 뒤 스텝들이 외부 패키지로 신뢰할 수 없는
+      # RSS·HTML을 처리하므로, 그 코드가 저장소 쓰기 토큰을 읽을 수 없게 한다.
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with:
           node-version: '22'
           cache: npm
 
-      - run: npm ci
+      # 운영 의존성 중 설치 스크립트가 필요한 패키지는 없다. 스크립트 실행 경로를 막아둔다.
+      - run: npm ci --ignore-scripts
 
       - name: Backfill
         env:
@@ -65,9 +70,12 @@ jobs:
       # 한 배치를 통째로 버리면 그만큼 다시 과금된다.
       - name: Commit database
         if: ${{ !inputs.dry && !cancelled() }}
+        env:
+          # checkout이 토큰을 남기지 않으므로(persist-credentials: false) 푸시할 때만 쓴다
+          GH_TOKEN: ${{ github.token }}
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git add -f daily-digest.db
           git diff --staged --quiet || git commit -m "chore: backfill $(date -u +%Y-%m-%d)"
-          git push
+          git push "https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git" "HEAD:${GITHUB_REF_NAME}"

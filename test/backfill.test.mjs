@@ -89,7 +89,7 @@ function seeded() {
   ] });
   const rows = getBackfillTargets(db, { limit: 10 });
   const byKey = Object.fromEntries(rows.map(r => [r.source_item_id, r.id]));
-  // 한 행은 생성 성공, 한 행은 LLM이 실패해 전부 null — 둘 다 backfilled_at은 찍힌다
+  // 한 행은 생성 성공, 한 행은 LLM이 실패해 전부 null. 둘 다 backfilled_at은 찍힌다
   updateItemContent(db, byKey.ok, { titleKo: '번역됨', isTranslated: true, detailSummary: '요약' });
   updateItemContent(db, byKey.empty, { isTranslated: false });
   return db;

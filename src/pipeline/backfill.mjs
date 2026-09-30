@@ -87,7 +87,7 @@ export async function runBackfill(opts) {
         console.log(`  [${i + 1}/${targets.length}] ${label}: `
           + `번역 ${gotTranslation ? 'O' : '-'} / 상세 ${gotDetail ? 'O' : '-'}`
           + `${d.usedFullText ? ' (전문)' : ''}`);
-        // 두 함수는 실패해도 throw하지 않고 원문 폴백한다 — 사유를 찍지 않으면
+        // 두 함수는 실패해도 throw하지 않고 원문 폴백한다. 사유를 찍지 않으면
         // CI 로그에 '-'만 남아 왜 비었는지 알 수 없다.
         if (t.translateError) console.error(`      번역 실패: ${t.translateError}`);
         if (d.detailError) console.error(`      상세 실패: ${d.detailError}`);

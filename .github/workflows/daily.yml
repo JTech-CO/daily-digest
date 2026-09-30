@@ -16,17 +16,23 @@ concurrency:
 jobs:
   digest:
     runs-on: ubuntu-latest
+    timeout-minutes: 30          # 평소 5분 안팎. 외부 서버가 붙잡아도 여기서 끊는다
     outputs:
       pipeline_code: ${{ steps.pipeline.outputs.code }}
     steps:
-      - uses: actions/checkout@v4
+      # 토큰을 .git/config에 남기지 않는다. 뒤 스텝들이 외부 패키지로 신뢰할 수 없는
+      # RSS·HTML을 처리하므로, 그 코드가 저장소 쓰기 토큰을 읽을 수 없게 한다.
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with:
           node-version: '22'
           cache: npm
 
-      - run: npm ci
+      # 운영 의존성 중 설치 스크립트가 필요한 패키지는 없다. 스크립트 실행 경로를 막아둔다.
+      - run: npm ci --ignore-scripts
 
       # 수집 → 중복제거 → 선별/재분배 → 번역 → SQLite 적재
       # LLM 키는 설정된 것 중 하나면 충분(§ README LLM 프로바이더 표). 선택은 LLM_PROVIDER로 고정 가능.
@@ -60,26 +66,30 @@ jobs:
         run: npm run build
 
       - name: Upload Pages artifact
-        uses: actions/upload-pages-artifact@v3
+        uses: actions/upload-pages-artifact@56afc609e74202658d3ffba0e8f6dda462b719fa # v3
         with:
           path: public
 
       # DB를 리포지토리에 커밋(다음 실행이 이어서 누적)
       - name: Commit database
+        env:
+          # checkout이 토큰을 남기지 않으므로(persist-credentials: false) 푸시할 때만 쓴다
+          GH_TOKEN: ${{ github.token }}
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git add -f daily-digest.db
           git diff --staged --quiet || git commit -m "chore: update digest $(date -u +%Y-%m-%d)"
-          git push
+          git push "https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git" "HEAD:${GITHUB_REF_NAME}"
 
   deploy:
     needs: digest
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     permissions:
       pages: write
       id-token: write
-    # deploy.yml의 배포 잡과 같은 큐 — Pages 배포가 겹치지 않도록
+    # deploy.yml의 배포 잡과 같은 큐. Pages 배포가 겹치지 않도록
     concurrency:
       group: pages
       cancel-in-progress: false
@@ -88,7 +98,7 @@ jobs:
       url: ${{ steps.deployment.outputs.page_url }}
     steps:
       - id: deployment
-        uses: actions/deploy-pages@v4
+        uses: actions/deploy-pages@d6db90164ac5ed86f2b6aed7e0febac5b3c0c03e # v4
 
   # 게시를 막지 않으면서도 문제를 놓치지 않도록, 배포가 끝난 뒤 실행을 실패로 표시한다.
   guard:

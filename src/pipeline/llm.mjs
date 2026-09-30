@@ -154,7 +154,7 @@ export async function askLlmJSON({ system, user, maxTokens = 600, fetchImpl = fe
   try {
     return parseLooseJson(text);
   } catch (cause) {
-    // 앞 200자만 찍으면 대개 멀쩡해 보인다 — 깨진 곳은 뒤쪽이라 꼬리도 함께 남긴다.
+    // 앞 200자만 찍으면 대개 멀쩡해 보인다. 깨진 곳은 뒤쪽이라 꼬리도 함께 남긴다.
     throw new Error(`[llm:${p.name}] JSON 파싱 실패: ${excerpt(text)}`, { cause });
   }
 }
@@ -179,7 +179,7 @@ export function parseLooseJson(text) {
   try {
     return JSON.parse(s);
   } catch {
-    return JSON.parse(escapeRawControls(s));    // 그래도 안 되면 throw — 호출부가 폴백한다
+    return JSON.parse(escapeRawControls(s));    // 그래도 안 되면 throw(호출부가 폴백한다)
   }
 }
 

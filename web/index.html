@@ -18,7 +18,7 @@
   <meta name="twitter:card" content="summary_large_image">
   <!-- 방어 계층(BYOK 사이트). 스크립트는 자기 출처만, 연결은 data.json과 4개 LLM 프로바이더로 제한.
        GitHub Pages는 응답 헤더를 못 붙이므로 meta로 선언한다. -->
-  <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self'; style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://fonts.googleapis.com; font-src 'self' https://cdn.jsdelivr.net https://fonts.gstatic.com; img-src 'self' data:; connect-src 'self' https://api.anthropic.com https://api.openai.com https://api.x.ai https://generativelanguage.googleapis.com; base-uri 'none'; form-action 'none'">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self'; style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://fonts.googleapis.com; font-src 'self' https://cdn.jsdelivr.net https://fonts.gstatic.com; img-src 'self' data:; connect-src 'self'; base-uri 'none'; form-action 'none'">
   <link rel="preconnect" href="https://cdn.jsdelivr.net">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -39,7 +39,6 @@
       <button id="nextDate" class="datenav__btn" aria-label="다음 날짜">›</button>
     </nav>
     <div class="statusline__actions">
-      <button id="settingsBtn" class="iconbtn" aria-label="LLM 설정" aria-haspopup="dialog">⚙</button>
       <button id="themeToggle" class="toggle" role="switch" aria-label="다크/라이트 전환">
         <span class="toggle__track"><span class="toggle__knob"></span></span>
       </button>
@@ -89,51 +88,6 @@
       <a class="detail__source" id="detailSource" target="_blank" rel="noopener noreferrer">원문 보기 ↗</a>
 
       <div class="detail__body" id="detailBody"></div>
-    </div>
-  </div>
-
-  <!-- LLM 설정: 프로바이더·모델·API 키. 키는 이 브라우저(localStorage)에만 저장. -->
-  <div class="settings" id="settings" hidden>
-    <div class="settings__backdrop" data-close-settings></div>
-    <div class="settings__panel" role="dialog" aria-modal="true" aria-labelledby="settingsTitle">
-      <header class="settings__head">
-        <h2 class="settings__title" id="settingsTitle">LLM 설정</h2>
-        <button class="detail__close" id="settingsClose" aria-label="닫기">✕</button>
-      </header>
-
-      <label class="field">
-        <span class="field__label">프로바이더</span>
-        <select id="settingsProvider" class="field__input">
-          <option value="anthropic">Anthropic (Claude)</option>
-          <option value="openai">OpenAI</option>
-          <option value="grok">Grok (xAI)</option>
-          <option value="gemini">Gemini</option>
-        </select>
-      </label>
-
-      <label class="field">
-        <span class="field__label">모델</span>
-        <select id="settingsModel" class="field__input"></select>
-      </label>
-
-      <label class="field">
-        <span class="field__label">API 키</span>
-        <input id="settingsKey" class="field__input" type="password" spellcheck="false"
-               autocomplete="off" placeholder="[Enter your API key]">
-      </label>
-
-      <p class="settings__note">
-        API 키는 <strong>이 브라우저에만</strong> 저장되며(localStorage), 선택한 프로바이더로만 직접 전송됩니다.
-        공용 PC에서는 사용 후 <em>지우기</em>를 눌러 주세요.<br>
-        이 키로는 <strong>브라우저에서 초록(abstract) 기반</strong> 상세를 생성합니다.
-        <strong>기사 전문 기반</strong>은 서버 파이프라인(환경변수 키 + <code>npm start</code>)에서 만들어집니다.
-      </p>
-
-      <div class="settings__actions">
-        <button id="settingsClear" class="btn btn--ghost">지우기</button>
-        <button id="settingsSave" class="btn btn--accent">저장</button>
-      </div>
-      <p class="settings__status" id="settingsStatus"></p>
     </div>
   </div>
 

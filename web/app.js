@@ -1,11 +1,6 @@
 // daily-digest 프론트엔드: 디자인 백서 §4, §6 구현
 // data.json(빌드 시 DB에서 생성)을 읽어 날짜별 다이제스트를 렌더링한다.
 
-import {
-  PROVIDERS, defaultModelFor, modelsFor, getConfig, saveConfig, clearConfig, hasConfig,
-  generateDetail, cachedDetail, cacheDetail,
-} from './llm.js';
-
 // 소스 식별을 명확히 하기 위해 축약 대신 전체 명칭을 대문자로 표기
 const BADGE = {
   hackernews: 'HACKER NEWS', geeknews: 'GEEKNEWS', arxiv: 'ARXIV',
@@ -342,79 +337,16 @@ function section(label, text, { markdown = false, copyable = false } = {}) {
   return sec;
 }
 
-// pick의 유효 상세 = 파이프라인 전문 기반 생성이 우선 → 브라우저 캐시(초록 기반 폴백)
-function effectiveDetail(pick) {
-  const cached = cachedDetail(pick);
-  const fromPipeline = !!(pick.detail_translation || pick.detail_summary || pick.detail_blog);
-  return {
-    translation: pick.detail_translation || cached?.translation || null,
-    summary: pick.detail_summary || cached?.summary || null,
-    blog: pick.detail_blog || cached?.blog || null,
-    fromPipeline, // 표시된 콘텐츠가 파이프라인(전문) 출처인지
-  };
-}
-
+// 상세 3구성은 매일 파이프라인이 미리 만든다. 실제로 생성된 구성만 표시한다(빈 섹션 방지).
 function renderDetailBody(pick) {
-  const body = $('detailBody');
-  const d = effectiveDetail(pick);
-
-  // 실제 생성된 구성만 표시한다(빈 섹션·초록 오표시 방지).
   const sections = [];
-  if (d.translation) sections.push(section('원문 번역본', d.translation));
-  if (d.summary) sections.push(section('핵심 요약', d.summary));
-  if (d.blog) sections.push(section('블로그 글 작성용 초안', d.blog, { markdown: true, copyable: true }));
+  if (pick.detail_translation) sections.push(section('원문 번역본', pick.detail_translation));
+  if (pick.detail_summary) sections.push(section('핵심 요약', pick.detail_summary));
+  if (pick.detail_blog) sections.push(section('블로그 글 작성용 초안', pick.detail_blog, { markdown: true, copyable: true }));
 
-  const children = [];
-  if (sections.length) {
-    // 출처 배지: 전문(파이프라인) vs 초록(브라우저)
-    const prov = el('div', 'detail__prov');
-    prov.append(el('span', `detail__prov-tag${d.fromPipeline ? ' detail__prov-tag--full' : ''}`,
-      d.fromPipeline ? '전문 기반 · 파이프라인' : '초록 기반 · 브라우저 생성'));
-    children.push(prov, ...sections);
-  }
-
-  // 파이프라인이 3구성을 모두 채웠으면 브라우저(초록) 재생성 버튼은 숨긴다
-  // (파이프라인 우선이라 브라우저 재생성 결과가 표시되지 않아 무의미).
-  const pipelineComplete = !!(pick.detail_translation && pick.detail_summary && pick.detail_blog);
-  const incomplete = !d.translation || !d.summary || !d.blog;
-  if (!pipelineComplete && (hasConfig() || incomplete)) {
-    children.push(generateControl(pick, incomplete));
-  }
-
-  body.replaceChildren(...children);
-}
-
-function generateControl(pick, incomplete) {
-  const wrap = el('div', 'detail__gen');
-  if (hasConfig()) {
-    const cfg = getConfig();
-    const label = incomplete ? 'AI로 상세 생성' : '다시 생성';
-    const btn = el('button', 'detail__generate', label);
-    btn.addEventListener('click', async () => {
-      btn.disabled = true;
-      btn.textContent = '생성 중…';
-      try {
-        const detail = await generateDetail(pick);   // 캐시 무시하고 현재 설정으로 새로 생성
-        cacheDetail(pick, detail);
-        renderDetailBody(pick);                       // 재렌더(생성 결과 반영)
-        $('detailClose').focus(); // 포커스를 모달 내부로 유지
-      } catch (err) {
-        btn.disabled = false;
-        btn.textContent = label;
-        const hint = wrap.querySelector('.detail__gen-hint') || el('p', 'detail__gen-hint');
-        hint.textContent = `생성 실패: ${err.message}`;
-        wrap.append(hint);
-      }
-    });
-    // 브라우저 생성은 CORS로 전문을 못 가져와 초록 기반이다. 전문 기반은 파이프라인(서버).
-    wrap.append(btn, el('span', 'detail__gen-hint',
-      ` ${PROVIDERS[cfg.provider]?.label ?? cfg.provider} · ${cfg.model} · 초록 기반(전문 기반은 파이프라인에서 생성)`));
-  } else {
-    const btn = el('button', 'detail__generate', '⚙ 설정에서 API 키 입력');
-    btn.addEventListener('click', () => { closeDetail(); openSettings(); });
-    wrap.append(btn, el('p', 'detail__gen-hint', 'API 키를 입력하면 이 글의 초록 기반 번역·요약·블로그 초안을 브라우저에서 생성합니다(전문 기반은 파이프라인).'));
-  }
-  return wrap;
+  // 아직 없는 글(백필 전이거나 그날 생성이 실패한 글)은 안내만 한다
+  $('detailBody').replaceChildren(...(sections.length ? sections
+    : [el('p', 'detail__pending', '이 글의 번역·요약은 아직 준비되지 않았습니다. 원문 보기로 먼저 읽어 주세요.')]));
 }
 
 function fillDetail(pick) {
@@ -446,76 +378,18 @@ function setupDetail() {
   const modal = $('detail');
   $('detailClose').addEventListener('click', closeDetail);
   modal.querySelectorAll('[data-close]').forEach(n => n.addEventListener('click', closeDetail));
-  document.addEventListener('keydown', (e) => { if (e.key === 'Escape') { closeDetail(); closeSettings(); } });
+  document.addEventListener('keydown', (e) => { if (e.key === 'Escape') closeDetail(); });
 }
 
-// ── LLM 설정 모달 ──────────────────────────────────────────────
-// ⚙ 버튼: 키가 설정돼 있으면 액센트 색으로 표시
-function syncSettingsIndicator() {
-  $('settingsBtn').dataset.configured = hasConfig() ? 'true' : 'false';
-}
-
-// 모델 <select>를 해당 프로바이더의 모델 목록으로 채우고 selected를 지정
-function populateModelSelect(provider, selected) {
-  const sel = $('settingsModel');
-  const models = modelsFor(provider);
-  const chosen = models.includes(selected) ? selected : defaultModelFor(provider);
-  sel.replaceChildren(...models.map(m => {
-    const o = document.createElement('option');
-    o.value = m; o.textContent = m; o.selected = m === chosen;
-    return o;
-  }));
-}
-
-function fillSettings() {
-  const cfg = getConfig();
-  const providerSel = $('settingsProvider');
-  const keyInput = $('settingsKey');
-
-  providerSel.value = cfg?.provider || 'anthropic';
-  populateModelSelect(providerSel.value, cfg?.model);
-  keyInput.value = cfg?.apiKey || '';
-  $('settingsStatus').textContent = '';
-}
-
-const settingsModal = makeModal('settings', { fill: fillSettings, focusId: 'settingsProvider' });
-const openSettings = () => settingsModal.open();
-const closeSettings = () => settingsModal.close();
-
-function setupSettings() {
-  const providerSel = $('settingsProvider');
-  const modelInput = $('settingsModel');
-  const keyInput = $('settingsKey');
-  const status = $('settingsStatus');
-
-  syncSettingsIndicator();
-
-  $('settingsBtn').addEventListener('click', openSettings);
-  $('settingsClose').addEventListener('click', closeSettings);
-  document.querySelectorAll('[data-close-settings]').forEach(n => n.addEventListener('click', closeSettings));
-
-  // 프로바이더 변경 시 모델 목록을 그 프로바이더 것으로 교체(기본 모델 선택)
-  providerSel.addEventListener('change', () => {
-    populateModelSelect(providerSel.value);
-    const risk = PROVIDERS[providerSel.value]?.corsRisk;
-    status.textContent = risk ? '⚠ 이 프로바이더는 브라우저 직접 호출이 CORS로 막힐 수 있습니다.' : '';
-  });
-
-  $('settingsSave').addEventListener('click', () => {
-    const apiKey = keyInput.value.trim();
-    if (!apiKey) { status.textContent = 'API 키를 입력하세요.'; return; }
-    saveConfig({ provider: providerSel.value, model: modelInput.value, apiKey });
-    syncSettingsIndicator();
-    status.textContent = '저장되었습니다.';
-    setTimeout(closeSettings, 700);
-  });
-
-  $('settingsClear').addEventListener('click', () => {
-    clearConfig();
-    keyInput.value = '';
-    syncSettingsIndicator();
-    status.textContent = '지워졌습니다.';
-  });
+// ── 예전 BYOK 흔적 정리 ────────────────────────────────────────
+// 방문자 API 키를 브라우저에 저장하던 기능이 있었다. 이 사이트의 출처(jtech-co.github.io)는
+// 같은 계정의 다른 Pages 사이트들과 공유돼 그쪽에서도 localStorage를 읽고 쓸 수 있으므로,
+// 남아 있는 키와 생성 캐시를 지운다.
+function purgeLegacyByok() {
+  try {
+    localStorage.removeItem('dd:llmConfig');
+    for (const k of Object.keys(localStorage)) if (k.startsWith('dd:detail:')) localStorage.removeItem(k);
+  } catch { /* 저장소에 접근할 수 없으면(프라이빗 모드 등) 지울 것도 없다 */ }
 }
 
 // ── 테마 토글 (§6): 수동 선택이 항상 우선, 시스템 설정 미참조 ──
@@ -587,7 +461,7 @@ async function main() {
   setupTheme();
   setupNav();
   setupDetail();
-  setupSettings();
+  purgeLegacyByok();
   try {
     const res = await fetch('data.json', { cache: 'no-cache' });
     if (!res.ok) throw new Error(`data.json ${res.status}`);

@@ -190,7 +190,7 @@ test('느슨한 파싱: 구조가 깨진 건 그대로 throw(호출부가 원문
   assert.throws(() => parseLooseJson('완전히 딴소리'));
 });
 
-test('파싱 실패 메시지는 꼬리도 남긴다 — 깨진 곳은 대개 뒤쪽', withKey(async () => {
+test('파싱 실패 메시지는 꼬리도 남긴다(깨진 곳은 대개 뒤쪽)', withKey(async () => {
   const long = 'x'.repeat(900);
   const bad = { stop_reason: 'end_turn', content: [{ type: 'text', text: `{"t":"${long}` }] };
   await assert.rejects(

@@ -50,15 +50,17 @@ async function readCapped(res, source, url) {
  * @param {typeof fetch} [options.fetchImpl]
  * @param {number} [options.retries=0]        429/5xx/네트워크 오류 재시도 횟수
  * @param {number} [options.retryDelayMs=3000] 첫 재시도 대기(이후 2배씩 증가)
+ * @param {number} [options.timeoutMs=30000]   요청 1회의 상한(헤더+본문). 응답을 질질 끄는 서버가
+ *   그날 실행 전체를 붙잡지 않도록 한다. 전문 추출은 임의의 기사 서버로 요청한다.
  * @returns {Promise<string>}
  */
-export async function fetchText(source, url, { fetchImpl = fetch, retries = 0, retryDelayMs = 3000 } = {}) {
+export async function fetchText(source, url, { fetchImpl = fetch, retries = 0, retryDelayMs = 3000, timeoutMs = 30_000 } = {}) {
   let lastError;
   for (let attempt = 0; attempt <= retries; attempt++) {
     if (attempt > 0) await sleep(retryDelayMs * 2 ** (attempt - 1));
     let res;
     try {
-      res = await fetchImpl(url, { headers: { 'User-Agent': USER_AGENT } });
+      res = await fetchImpl(url, { headers: { 'User-Agent': USER_AGENT }, signal: AbortSignal.timeout(timeoutMs) });
     } catch (cause) {
       lastError = new Error(`[${source}] 요청 실패: ${url}`, { cause });
       continue;
@@ -68,7 +70,12 @@ export async function fetchText(source, url, { fetchImpl = fetch, retries = 0, r
       if (res.status === 429 || res.status >= 500) continue; // 재시도 대상
       throw lastError;                                       // 4xx는 재시도 무의미
     }
-    return readCapped(res, source, url);
+    try {
+      return await readCapped(res, source, url);   // 같은 signal이 본문 수신에도 걸린다
+    } catch (cause) {
+      if (cause?.name !== 'TimeoutError') throw cause;
+      throw new Error(`[${source}] 응답 수신이 ${timeoutMs}ms를 넘겨 중단: ${url}`, { cause });
+    }
   }
   throw lastError;
 }

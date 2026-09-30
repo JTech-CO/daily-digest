@@ -7,16 +7,23 @@ on:
     - cron: '0 1 * * 1'    # 매주 월요일 10:00 KST
   workflow_dispatch: {}
 
+# 점검만 하므로 읽기 권한이면 충분하다(없으면 저장소 기본 권한을 그대로 받는다)
+permissions:
+  contents: read
+
 jobs:
   monitor:
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with:
           node-version: '22'
           cache: npm
-      - run: npm ci
+      - run: npm ci --ignore-scripts
       - name: Run tests (폴백 경로 포함)
         run: npm test
       - name: Endpoint health check (§9)

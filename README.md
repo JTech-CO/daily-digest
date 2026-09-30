@@ -29,7 +29,7 @@ Hacker News · GeekNews · arXiv · Phys.org · TechXplore를 매일 일일이 �
 
 5개 소스 병렬 수집 → 4단계 중복 제거 → 소스당 1건 선별(빈 소스는 다른 소스에서 보충). 한 소스가 죽어도
 나머지는 그대로 올라오고, 과거에 실린 항목은 다시 뽑지 않습니다. LLM 키는 선택이며(없으면 원문 그대로 게시)
-Anthropic · OpenAI · Grok(xAI) · Gemini를 지원합니다. 사이트 우측 상단 ⚙에서 본인 키로 직접 생성(BYOK)할 수도 있습니다.
+Anthropic · OpenAI · Grok(xAI) · Gemini를 지원합니다.
 
 ## 2. 기술 스택 (Tech Stack)
 
@@ -77,7 +77,7 @@ daily-digest/
 │   ├── db/         # SQLite 스키마·저장
 │   ├── web/        # 정적 사이트 빌드 · 미리보기 서버
 │   └── index.mjs   # 파이프라인 진입점 (monitor.mjs: 헬스체크)
-├── web/            # 프론트엔드(index.html · styles.css · app.js · llm.js)
+├── web/            # 프론트엔드(index.html · styles.css · app.js)
 ├── test/           # node:test 스위트
 └── .github/workflows/   # 일일 파이프라인 + 주간 헬스체크
 ```

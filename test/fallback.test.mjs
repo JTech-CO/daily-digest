@@ -212,3 +212,31 @@ test('arxiv: HF와 API에 같은 논문이 있으면 중복 없이 1건(버전 �
   assert.equal(out.length, 1);
   assert.equal(out[0].popularitySignal, 7);
 });
+
+// ── 요청 타임아웃 ─────────────────────────────────────────────
+// 응답을 질질 끄는 서버 하나가 그날 실행 전체를 붙잡으면 안 된다(전문 추출은 임의의 기사 서버로 간다).
+
+// signal을 존중하는 mock: 응답하지 않다가 중단되면 그 사유로 reject
+const hangs = (_url, { signal }) => new Promise((_, reject) => {
+  signal.addEventListener('abort', () => reject(signal.reason));
+});
+
+test('fetchText: 응답이 없으면 timeoutMs 뒤 중단', async () => {
+  const started = Date.now();
+  await assert.rejects(() => fetchText('slow', 'https://slow.example/a', { fetchImpl: hangs, timeoutMs: 30 }), /요청 실패/);
+  assert.ok(Date.now() - started < 2000);
+});
+
+test('fetchText: 본문을 질질 끌어도 timeoutMs 뒤 중단', async () => {
+  // 헤더는 바로 오지만 본문 스트림이 끝나지 않는 서버
+  const trickle = (_url, { signal }) => Promise.resolve({
+    ok: true, status: 200, statusText: 'OK', headers: new Headers(),
+    body: new ReadableStream({
+      start(controller) {
+        controller.enqueue(new TextEncoder().encode('<html>'));
+        signal.addEventListener('abort', () => controller.error(signal.reason));
+      },
+    }),
+  });
+  await assert.rejects(() => fetchText('slow', 'https://slow.example/b', { fetchImpl: trickle, timeoutMs: 30 }), /응답 수신이 30ms를 넘겨 중단/);
+});
