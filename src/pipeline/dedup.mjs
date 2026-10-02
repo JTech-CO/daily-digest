@@ -87,9 +87,18 @@ export async function findDuplicate(candidate, alreadyPicked, { classifyPair = n
   }
 
   // 4차: 애매 구간 LLM 이진 분류 - 분류기 없으면 비중복으로 간주(보수적: 과잉 필터링 방지)
+  // 분류기가 실패해도(크레딧 소진·장애) 같은 원칙으로 비중복 처리한다. 여기서 던지면
+  // 수집까지 끝난 그날의 게시 전체가 멈춘다(2026-10-02에 실제로 그랬다).
   if (classifyPair) {
     for (const { picked, score } of ambiguous.sort((a, b) => b.score - a.score)) {
-      if (await classifyPair(candidate, picked)) return { picked, method: 'llm', score };
+      let duplicate;
+      try {
+        duplicate = await classifyPair(candidate, picked);
+      } catch (err) {
+        console.warn(`[dedup] 4차 LLM 판정 실패, 비중복으로 처리: ${err.message}`);
+        return null;
+      }
+      if (duplicate) return { picked, method: 'llm', score };
     }
   }
   return null;

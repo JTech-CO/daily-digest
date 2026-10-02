@@ -97,6 +97,13 @@ test('4차 llm: 분류기 미주입(키 없음)이면 애매 구간은 비중복
   assert.equal(await findDuplicate(article, [paper]), null);
 });
 
+test('4차 llm: 분류기가 실패하면(크레딧 소진 등) 던지지 않고 비중복 처리', async () => {
+  // 회귀: 2026-10-02 크레딧 소진 상태에서 애매 구간 쌍이 처음 나오자 이 호출이 던져
+  // 수집까지 끝난 그날의 게시 전체가 멈췄다.
+  const failing = async () => { throw new Error('[llm:anthropic] API 오류 400: credit balance is too low'); };
+  assert.equal(await findDuplicate(article, [paper], { classifyPair: failing }), null);
+});
+
 test('4차 llm: 확정 구간(1~3차)에서는 분류기를 호출하지 않음', async () => {
   const a = cand('hackernews', 'Exact same', 'https://example.com/x');
   const b = cand('geeknews', '같은 링크', 'https://example.com/x');
