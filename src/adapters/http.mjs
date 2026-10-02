@@ -3,7 +3,7 @@
 // 5개 어댑터가 병렬로 돌 때(§1) 어느 소스의 어느 요청이 죽었는지
 // 로그만으로 식별 가능해야 한다. arXiv 429(§9)는 retries 옵션으로 흡수한다.
 
-export const USER_AGENT = 'daily-digest/0.1 (personal curation; contact: mjwbryan131@gmail.com)';
+export const USER_AGENT = 'fivetabs/0.1 (personal curation; contact: mjwbryan131@gmail.com)';
 
 // 신뢰 불가 외부 응답의 본문 상한(피드·홈 HTML엔 충분). 무제한 버퍼링에 의한
 // 메모리 고갈 DoS와 파싱 폭발(ReDoS 증폭)을 막는다.

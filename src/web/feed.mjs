@@ -38,7 +38,7 @@ const entryId = (siteUrl, date, p) =>
  * @param {number} [options.days=30]
  * @param {string} options.updated ISO 문자열(빌드 시각)
  */
-export function buildAtom(data, { siteUrl, title = 'daily-digest', days = 30, updated }) {
+export function buildAtom(data, { siteUrl, title = 'fivetabs', days = 30, updated }) {
   const base = siteUrl.replace(/\/$/, '');
   const dates = data.dates.slice(0, days);
   const entries = [];
@@ -69,7 +69,7 @@ ${entries.join('\n')}
 }
 
 /** JSON Feed 1.1 문서 */
-export function buildJsonFeed(data, { siteUrl, title = 'daily-digest', days = 30 }) {
+export function buildJsonFeed(data, { siteUrl, title = 'fivetabs', days = 30 }) {
   const base = siteUrl.replace(/\/$/, '');
   const items = [];
   for (const { date } of data.dates.slice(0, days)) {

@@ -1,8 +1,8 @@
-# daily-digest
+# fivetabs (파이브탭스)
 
-> **매일 5개 기술·과학 소스에서 가장 주목할 글을 하나씩 골라 한국어로 읽는 데일리 다이제스트**
+> **매일 5개 기술·과학 소스에서 가장 주목할 글을 하나씩 골라 한국어로 읽는 기술 다이제스트**
 
-[![daily-digest](images/og.png)](https://jtech-co.github.io/daily-digest/)
+[![fivetabs](images/og.png)](https://jtech-co.github.io/daily-digest/)
 
 **사이트** https://jtech-co.github.io/daily-digest/
 · **구독** [Atom](https://jtech-co.github.io/daily-digest/feed.xml) · [JSON Feed](https://jtech-co.github.io/daily-digest/feed.json)
@@ -10,9 +10,10 @@
 ## 1. 소개 (Introduction)
 
 Hacker News · GeekNews · arXiv · Phys.org · TechXplore를 매일 일일이 훑기는 번거롭습니다.
-**daily-digest**는 이 다섯 소스에서 **하루 소스당 1건**씩 가장 인기 있고 새로운 글을 자동으로 골라
+**fivetabs**는 이 다섯 소스에서 **하루 소스당 1건**씩 가장 인기 있고 새로운 글을 자동으로 골라
 **한국어로 번역·정리**해 한 페이지로 보여줍니다. 매일 09:00 KST에 파이프라인이 돌고 결과는 정적
 사이트로 배포되므로, 읽는 쪽에서 할 일은 [페이지](https://jtech-co.github.io/daily-digest/)를 여는 것뿐입니다.
+이름은 아침마다 띄워 두던 **탭 다섯 개를 하루 다섯 개로** 줄였다는 뜻입니다.
 
 ### 어디에 쓰나
 
