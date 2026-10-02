@@ -3,7 +3,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { buildAtom, buildJsonFeed } from '../src/web/feed.mjs';
 
-const SITE = 'https://jtech-co.github.io/daily-digest';
+const SITE = 'https://jtech-co.github.io/fivetabs';
 const pick = (over = {}) => ({
   rank: 1, source: 'hackernews', source_item_id: '123',
   title_original: 'Original Title', title_ko: '번역 제목',

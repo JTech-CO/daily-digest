@@ -15,7 +15,7 @@ const IMAGES_DIR = join(ROOT, 'images');   // OG 이미지 등 공유 정적 자
 const PUBLIC_DIR = join(ROOT, 'public');
 const DB_PATH = join(ROOT, 'daily-digest.db');
 // 피드의 절대 URL 기준. 다른 곳에 배포하면 SITE_URL로 덮어쓴다.
-const SITE_URL = process.env.SITE_URL ?? 'https://jtech-co.github.io/daily-digest';
+const SITE_URL = process.env.SITE_URL ?? 'https://jtech-co.github.io/fivetabs';
 
 // 프론트엔드가 쓰는 컬럼만 노출(원문/번역 병기, 표기 판단용 필드)
 const PICK_FIELDS = [
